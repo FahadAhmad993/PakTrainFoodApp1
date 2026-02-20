@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dashboard_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white">
+
+    <!-- Top App Bar -->
+    <LinearLayout
+        android:id="@+id/top_app_bar"
+        android:layout_width="match_parent"
+        android:layout_height="90dp"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:background="@color/purple_700"
+        android:gravity="center_vertical">
+
+        <!-- Left side: Cycle Icon -->
+        <ImageView
+            android:id="@+id/rider_icon"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:src="@drawable/deliveryboy"
+            android:background="@drawable/status_dot_green"
+            android:contentDescription="Rider Icon" />
+
+        <!-- Middle: Rider Info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingStart="10dp">
+
+            <TextView
+                android:id="@+id/app_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PakTrain Rider"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/rider_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Fahad Ahmad"
+                android:textColor="@color/white"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Right side: Online/Offline toggle -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- Status Dot -->
+            <View
+                android:id="@+id/status_dot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/status_dot_green" />
+
+            <TextView
+                android:id="@+id/status_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Online"
+                android:textColor="@color/white"
+                android:textSize="14sp"
+                android:layout_marginEnd="6dp"/>
+
+            <!-- Switch -->
+            <Switch
+                android:id="@+id/status_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:thumbTint="@color/white" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Fragment Container -->
+    <FrameLayout
+        android:id="@+id/fragment_loader"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/top_app_bar"
+        android:layout_above="@id/bottom_deliver_nav" />
+
+    <!-- Bottom Navigation -->
+    <LinearLayout
+        android:id="@+id/bottom_deliver_nav"
+        android:layout_width="match_parent"
+        android:layout_height="70dp"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@color/white"
+        android:padding="4dp">
+
+        <!-- Dashboard -->
+        <LinearLayout
+            android:id="@+id/btn_deliver_home"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:padding="4dp">
+            <ImageView
+                android:id="@+id/icon_deliver_home"
+                android:src="@drawable/ic_dashboard"
+                android:layout_width="36dp"
+                android:layout_height="36dp"/>
+            <TextView
+                android:id="@+id/text_deliver_home"
+                android:text="Home"
+                android:textSize="14sp"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:textColor="@color/green"
+                android:textStyle="bold"/>
+        </LinearLayout>
+        <!-- Menu Button -->
+        <LinearLayout
+            android:id="@+id/btn_delivery_menu"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_weight="1"
+            android:padding="4dp">
+            <ImageView
+                android:id="@+id/icon_delivery_menu"
+                android:src="@drawable/ic_browse_menu"
+                android:layout_width="28dp"
+                android:layout_height="28dp"/>
+            <TextView
+                android:id="@+id/text_delivery_menu"
+                android:text="Notificatoins"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:textSize="12sp"
+                android:textColor="@color/gray"/>
+        </LinearLayout>
+
+        <!-- Orders -->
+        <LinearLayout
+            android:id="@+id/btn_delivery_order"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:padding="4dp">
+            <ImageView
+                android:id="@+id/icon_delivery_order"
+                android:src="@drawable/ic_order"
+                android:layout_width="28dp"
+                android:layout_height="28dp"/>
+            <TextView
+                android:id="@+id/text_delivery_order"
+                android:text="Orders"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:textSize="12sp"
+                android:textColor="@color/gray"/>
+        </LinearLayout>
+
+
+
+
+        <!-- Profile -->
+        <LinearLayout
+            android:id="@+id/btn_delivery_profile"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:padding="4dp">
+            <ImageView
+                android:id="@+id/icon_delivery_profile"
+                android:src="@drawable/ic_profile"
+                android:layout_width="28dp"
+                android:layout_height="28dp"/>
+            <TextView
+                android:id="@+id/text_delivery_profile"
+                android:text="Profile"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:textSize="12sp"
+                android:textColor="@color/gray"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+</RelativeLayout>

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:background="#F9F9F9"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.main.Restaurant.resturent_MenuFragment">
+
+    <!-- Toolbar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#4CAF50"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp">
+
+        <TextView
+            android:id="@+id/tvMenuTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Restaurant Menu"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnAddItem"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="+ Add Item"
+            android:textColor="@android:color/white"
+            android:backgroundTint="#388E3C"
+            android:paddingHorizontal="10dp" />
+    </LinearLayout>
+
+    <!-- Categories -->
+    <HorizontalScrollView
+        android:id="@+id/categoryScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/categoryContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp">
+
+            <!-- Buttons will be toggled in code -->
+            <Button
+                android:id="@+id/btn_cat_all"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="All"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/category_bg_selected"
+                android:textColor="@android:color/white"/>
+
+            <Button
+                android:id="@+id/btn_cat_biryani"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Biryani"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/category_bg"
+                android:textColor="#333"/>
+
+            <Button
+                android:id="@+id/btn_cat_bbq"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="BBQ"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/category_bg"
+                android:textColor="#333"/>
+
+            <Button
+                android:id="@+id/btn_cat_fast"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="Fast Food"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/category_bg"
+                android:textColor="#333"/>
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Empty state -->
+    <TextView
+        android:id="@+id/tvEmptyState"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="No menu items yet. Click '+ Add Item' to create your menu!"
+        android:textColor="#757575"
+        android:textSize="16sp"
+        android:padding="20dp"
+        android:visibility="gone" />
+
+    <!-- Items list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvMenuItems"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:padding="8dp"/>
+</LinearLayout>
