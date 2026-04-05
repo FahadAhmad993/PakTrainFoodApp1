@@ -3,7 +3,6 @@
     android:id="@+id/splash_screen"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-
     <!-- Background image -->
     <ImageView
         android:id="@+id/splash_background"

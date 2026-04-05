@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:background="@color/teal_700"
-        android:padding="10dp">
+        android:padding="11dp">
 
         <TextView
             android:text="← Back"
