@@ -17,7 +17,6 @@
         app:titleTextColor="@color/black"
         app:titleTextAppearance="@style/Toolbar.Title" />
 
-
     <!-- Tabs -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabs_delivery_Orders"
@@ -43,24 +42,3 @@
 
 
 
-
-
-
-
-
-
-
-    <!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"-->
-<!--    xmlns:tools="http://schemas.android.com/tools"-->
-<!--    android:layout_width="match_parent"-->
-<!--    android:layout_height="match_parent"-->
-<!--    tools:context=".ui.main.Delivery.DeliveryOrderFragment">-->
-
-<!--    &lt;!&ndash; TODO: Update blank fragment layout &ndash;&gt;-->
-<!--    <TextView-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="match_parent"-->
-<!--        android:text="Delivery_Order Fragment" />-->
-
-<!--</FrameLayout>-->
