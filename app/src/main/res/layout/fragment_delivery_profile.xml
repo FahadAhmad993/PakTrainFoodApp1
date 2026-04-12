@@ -7,7 +7,7 @@
     android:background="@color/white"
     android:padding="16dp"
     android:layout_gravity="end"
-    android:elevation="10dp">
+    android:elevation="10.5dp">
 
     <ImageView
         android:id="@+id/img_delivery_profile"
