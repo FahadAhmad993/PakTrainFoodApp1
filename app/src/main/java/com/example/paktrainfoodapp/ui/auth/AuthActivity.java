@@ -17,7 +17,7 @@ public class AuthActivity extends AppCompatActivity {
         setContentView(R.layout.activity_auth);
 
         if (savedInstanceState == null) {
-            loadFragment(new RoleSelectFragment()); // sabse pehle Role select khulega
+            loadFragment(new RoleSelectFragment());
         }
     }
 

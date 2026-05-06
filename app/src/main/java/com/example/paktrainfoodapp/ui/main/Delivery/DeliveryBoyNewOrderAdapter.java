@@ -45,12 +45,12 @@ public class DeliveryBoyNewOrderAdapter extends RecyclerView.Adapter<DeliveryBoy
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         MenuItem order = orderList.get(position);
 
-        // --- Set order info (assuming fields are from restaurant order) ---
+        //  Set order info (assuming fields are from restaurant order)
         holder.tvName.setText(order.getName());
         holder.tvPhone.setText(order.getRestaurantCity());
         holder.tvEmail.setText(order.getRestaurantName());
 
-        // --- Set image if Base64 ---
+        //  Set image if Base64
         if (order.getImageUrl() != null && order.getImageUrl().startsWith("data:image")) {
             try {
                 String base64String = order.getImageUrl().split(",")[1];
@@ -64,7 +64,7 @@ public class DeliveryBoyNewOrderAdapter extends RecyclerView.Adapter<DeliveryBoy
             holder.imgDeliveryBoy.setImageResource(R.drawable.ic_food_placeholder);
         }
 
-        // --- Accept Order ---
+        // Accept Order
         holder.btnDeliverOrder.setOnClickListener(v -> {
             new AlertDialog.Builder(v.getContext())
                     .setTitle("Accept Order?")
@@ -88,7 +88,7 @@ public class DeliveryBoyNewOrderAdapter extends RecyclerView.Adapter<DeliveryBoy
                     .show();
         });
 
-        // --- Cancel Order ---
+        // Cancel Order
         holder.btnCancel.setOnClickListener(v -> {
             new AlertDialog.Builder(v.getContext())
                     .setTitle("Cancel Order?")

@@ -2,17 +2,15 @@ package com.example.paktrainfoodapp.ui.main.Restaurant;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
+import android.location.Location;
 import android.os.Bundle;
-import android.os.Handler;
-import android.util.Base64;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ImageView;
+import android.util.Log;
+import android.view.*;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.example.paktrainfoodapp.R;
@@ -21,277 +19,283 @@ import com.google.android.gms.maps.model.*;
 import com.google.firebase.database.*;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class OrderDetailFragment extends Fragment implements OnMapReadyCallback {
 
-    // UI
-    private TextView txtName, txtPrice, txtDesc, txtTrain, txtTicket, txtSeat, txtCoach, txtPhone, txtStation, txtEta;
-    private ImageView imgFood;
-
-    // IDs
-    private String orderId, passengerUid;
-
-    // Map
-    private GoogleMap googleMap;
-    private LatLng passengerLatLng, stationLatLng;
-    private Marker passengerMarker;
-    private Polyline routePolyline;
-
-    // Firebase
+    private GoogleMap mMap;
     private FirebaseFirestore firestore;
-    private DatabaseReference realtimeRef;
+    private DatabaseReference realtimeDb;
+    private ValueEventListener trainLocationListener;
 
-    private Handler handler = new Handler();
-    private Runnable updateRunnable;
+    private String orderId;
+    private List<String> stations = new ArrayList<>();
+    private List<LatLng> routePoints = new ArrayList<>();
 
-    // ================= NEW INSTANCE =================
+    private TextView txtEta, txtName, txtPrice, txtDesc;
+    private TextView txtTrain, txtSeat, txtCoach, txtTicket, txtPhone, txtMealStation, txtCurrentStation;
+
+    private LatLng trainPos;
+    private Marker trainMarker;
+    private Polyline routePolyline;
+    private Marker mealMarker;
+
+    private boolean mapReady = false;
+    private static final float AVG_SPEED_M_PER_MIN = 800;
+    private static final int STOP_TIME_PER_STATION = 10;
+
     public static OrderDetailFragment newInstance(String orderId, String passengerUid) {
-        OrderDetailFragment fragment = new OrderDetailFragment();
-        Bundle args = new Bundle();
-        args.putString("orderId", orderId);
-        args.putString("passengerUid", passengerUid);
-        fragment.setArguments(args);
-        return fragment;
+        OrderDetailFragment f = new OrderDetailFragment();
+        Bundle b = new Bundle();
+        b.putString("orderId", orderId);
+        b.putString("passengerUid", passengerUid);
+        f.setArguments(b);
+        return f;
     }
 
-    // ================= ON CREATE VIEW =================
-    @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater,
-                             @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_order_detail, container, false);
-    }
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View v = inflater.inflate(R.layout.fragment_order_detail, container, false);
 
-    // ================= ON VIEW CREATED =================
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-
-        // UI binding
-        txtName = view.findViewById(R.id.txtName);
-        txtPrice = view.findViewById(R.id.txtPrice);
-        txtDesc = view.findViewById(R.id.txtDesc);
-        txtTrain = view.findViewById(R.id.txtTrainName);
-        txtTicket = view.findViewById(R.id.txtTicketNumber);
-        txtSeat = view.findViewById(R.id.txtSeatNumber);
-        txtCoach = view.findViewById(R.id.txtCoachNumber);
-        txtPhone = view.findViewById(R.id.txtPhone);
-        txtStation = view.findViewById(R.id.txtMealStation);
-        txtEta = view.findViewById(R.id.txtEta);
-        imgFood = view.findViewById(R.id.imgFood);
+        txtEta = v.findViewById(R.id.txtEta);
+        txtName = v.findViewById(R.id.txtName);
+        txtPrice = v.findViewById(R.id.txtPrice);
+        txtDesc = v.findViewById(R.id.txtDesc);
+        txtTrain = v.findViewById(R.id.txtTrainName);
+        txtSeat = v.findViewById(R.id.txtSeatNumber);
+        txtCoach = v.findViewById(R.id.txtCoachNumber);
+        txtTicket = v.findViewById(R.id.txtTicketNumber);
+        txtPhone = v.findViewById(R.id.txtPhone);
+        txtMealStation = v.findViewById(R.id.txtMealStation);
+        txtCurrentStation = v.findViewById(R.id.txtCurrentStation);
 
         firestore = FirebaseFirestore.getInstance();
+        realtimeDb = FirebaseDatabase.getInstance().getReference();
 
         if (getArguments() != null) {
             orderId = getArguments().getString("orderId");
-            passengerUid = getArguments().getString("passengerUid");
         }
 
-        // Map init
         SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
-        if (mapFragment != null) {
-            mapFragment.getMapAsync(this);
-        }
+        if (mapFragment != null) mapFragment.getMapAsync(this);
 
-        loadOrderDetail();
-        startLiveLocationUpdates();
+        return v;
     }
 
-    // ================= LOAD ORDER DETAIL =================
-    private void loadOrderDetail() {
-        firestore.collection("Users")
-                .document("Passenger")
-                .collection("OrderNow")
-                .document(passengerUid)
-                .collection("Orders")
-                .document(orderId)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    if (!doc.exists()) return;
+    @Override
+    public void onMapReady(@NonNull GoogleMap googleMap) {
+        mMap = googleMap;
+        mapReady = true;
+        mMap.clear();
+        routePoints.clear();
+        stations.clear();
+        loadOrder();
+    }
 
+    private void loadOrder() {
+        if (orderId == null) return;
+
+        firestore.collection("Orders").document(orderId).get()
+                .addOnSuccessListener(doc -> {
+                    if (!doc.exists() || getContext() == null) return;
+
+                    // 1. Text with Labels (Prefixes)
                     txtName.setText(doc.getString("itemName"));
-                    txtPrice.setText("Rs. " + doc.getDouble("itemPrice"));
                     txtDesc.setText(doc.getString("itemDesc"));
 
+                    // Price handling (Checking for String or Long/Double)
+                    Object priceObj = doc.get("itemPrice");
+                    txtPrice.setText("Price: Rs. " + (priceObj != null ? priceObj.toString() : "0"));
+
                     txtTrain.setText("Train: " + doc.getString("trainName"));
-                    txtTicket.setText("Ticket No: " + doc.getString("ticketNumber"));
-                    txtSeat.setText("Seat No: " + doc.getString("seatNumber"));
-                    txtCoach.setText("Coach No: " + doc.getString("coachNumber"));
+                    txtSeat.setText("Seat: " + doc.getString("seatNumber"));
+                    txtCoach.setText("Coach: " + doc.getString("coachNumber"));
+                    txtTicket.setText("Ticket: " + doc.getString("ticketNumber"));
                     txtPhone.setText("Phone: " + doc.getString("phone"));
-                    txtStation.setText("Meal Station: " + doc.getString("mealStation"));
 
-                    loadImage(doc.getString("itemImage"));
-                    loadStationLocation(doc.getString("mealStation"));
-                });
+                    String meal = doc.getString("mealStation");
+                    txtMealStation.setText("Meal Station: " + meal);
+
+                    String routeId = doc.getString("routeId");
+                    if (routeId != null && meal != null) {
+                        loadRoute(routeId, meal);
+                    }
+
+                    listenTrainLocation();
+                })
+                .addOnFailureListener(e -> showToast("Connection Error"));
     }
 
-    // ================= LOAD IMAGE =================
-    private void loadImage(String base64) {
-        if (base64 == null || base64.isEmpty()) {
-            imgFood.setImageResource(R.drawable.ic_food_placeholder);
-            return;
-        }
-        try {
-            byte[] data = Base64.decode(base64, Base64.DEFAULT);
-            Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
-            imgFood.setImageBitmap(bmp);
-        } catch (Exception e) {
-            imgFood.setImageResource(R.drawable.ic_food_placeholder);
-        }
-    }
-
-    // ================= LOAD STATION LOCATION =================
-    private void loadStationLocation(String stationName) {
-        firestore.collection("Users")
-                .document("StationLocation")
-                .collection("Stations")
-                .document(stationName)
-                .get()
+    private void loadRoute(String routeId, String mealStation) {
+        firestore.collection("RailwaySystem").document("main")
+                .collection("Routes").document(routeId).get()
                 .addOnSuccessListener(doc -> {
-                    if (!doc.exists()) return;
+                    List<Object> raw = (List<Object>) doc.get("stations");
+                    if (raw == null) return;
 
-                    Double lat = doc.getDouble("lat");
-                    Double lng = doc.getDouble("lng");
-
-                    if (lat != null && lng != null) {
-                        stationLatLng = new LatLng(lat, lng);
-                        drawRoute(); // Draw initial route
+                    stations.clear();
+                    for (Object o : raw) {
+                        if (o instanceof String) stations.add((String) o);
+                        else if (o instanceof Map) {
+                            Object name = ((Map) o).get("name");
+                            if (name != null) stations.add(name.toString());
+                        }
                     }
+                    buildOrderedRoute(mealStation);
                 });
     }
 
-    // ================= START LIVE LOCATION UPDATES =================
-    private void startLiveLocationUpdates() {
-        if (orderId == null || orderId.isEmpty()) return;
-
-        realtimeRef = FirebaseDatabase.getInstance()
-                .getReference("Orders")
-                .child(orderId)
-                .child("passengerLocation");
-
-        updateRunnable = new Runnable() {
-            @Override
-            public void run() {
-                realtimeRef.get().addOnSuccessListener(snapshot -> {
-                    if (!snapshot.exists()) return;
-
-                    Double lat = snapshot.child("lat").getValue(Double.class);
-                    Double lng = snapshot.child("lng").getValue(Double.class);
-
-                    if (lat != null && lng != null) {
-                        passengerLatLng = new LatLng(lat, lng);
-                        animatePassengerMarker(passengerLatLng);
-                        updateEta();
-                        drawRoute();
-                    }
-                });
-                handler.postDelayed(this, 60 * 1000); // update every 1 min
-            }
-        };
-        handler.post(updateRunnable);
+    private void buildOrderedRoute(String mealStation) {
+        List<String> filtered = new ArrayList<>();
+        boolean startTracking = false;
+        for (String s : stations) {
+            if (!startTracking) startTracking = true;
+            if (startTracking) filtered.add(s);
+            if (s.equalsIgnoreCase(mealStation)) break;
+        }
+        stations.clear();
+        stations.addAll(filtered);
+        loadCoords();
     }
 
-    // ================= MAP READY =================
-    @Override
-    public void onMapReady(@NonNull GoogleMap map) {
-        googleMap = map;
-        googleMap.getUiSettings().setZoomControlsEnabled(true);
-        googleMap.getUiSettings().setZoomGesturesEnabled(true);
-        googleMap.getUiSettings().setScrollGesturesEnabled(true);
-        googleMap.getUiSettings().setRotateGesturesEnabled(true);
-        googleMap.getUiSettings().setMapToolbarEnabled(true);
-        drawRoute();
+    private void loadCoords() {
+        routePoints.clear();
+        Map<String, LatLng> tempMap = new HashMap<>();
+        final int totalStations = stations.size();
+
+        for (String st : stations) {
+            firestore.collection("RailwaySystem").document("main")
+                    .collection("Stations").document(st).get()
+                    .addOnSuccessListener(doc -> {
+                        Double lat = doc.getDouble("lat");
+                        Double lng = doc.getDouble("lng");
+                        if (lat != null && lng != null) {
+                            tempMap.put(st, new LatLng(lat, lng));
+                            if (tempMap.size() == totalStations) {
+                                for (String s : stations) {
+                                    routePoints.add(tempMap.get(s));
+                                }
+                                drawRoute();
+                                updateCurrentStation();
+                                updateETA();
+                            }
+                        }
+                    });
+        }
     }
 
-    // ================= DRAW ROUTE =================
     private void drawRoute() {
-        if (googleMap == null || passengerLatLng == null || stationLatLng == null) return;
+        if (!mapReady || routePoints.isEmpty()) return;
 
-        // Remove old polyline
         if (routePolyline != null) routePolyline.remove();
+        routePolyline = mMap.addPolyline(new PolylineOptions()
+                .addAll(routePoints)
+                .width(12)
+                .color(Color.BLUE));
 
-        // Simple straight line or list of stations in-between
-        List<LatLng> points = new ArrayList<>();
-        points.add(passengerLatLng);
+        if (mealMarker != null) mealMarker.remove();
+        mealMarker = mMap.addMarker(new MarkerOptions()
+                .position(routePoints.get(routePoints.size() - 1))
+                .title("Delivery Point"));
+    }
 
+    private void listenTrainLocation() {
+        if (orderId == null) return;
 
-
-        points.add(stationLatLng);
-
-        PolylineOptions options = new PolylineOptions()
-                .addAll(points)
-                .color(0xFF2196F3)
-                .width(8f)
-                .geodesic(true);
-        routePolyline = googleMap.addPolyline(options);
-
-        // Add markers if not exist
-        if (passengerMarker == null) {
-            passengerMarker = googleMap.addMarker(new MarkerOptions()
-                    .position(passengerLatLng)
-                    .title("Passenger")
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE)));
+        if (trainLocationListener != null) {
+            realtimeDb.child("OrderLocations").child(orderId).child("latest").removeEventListener(trainLocationListener);
         }
 
-        googleMap.addMarker(new MarkerOptions()
-                .position(stationLatLng)
-                .title("Meal Station")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+        trainLocationListener = realtimeDb.child("OrderLocations").child(orderId).child("latest")
+                .addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        Double lat = snapshot.child("lat").getValue(Double.class);
+                        Double lng = snapshot.child("lng").getValue(Double.class);
 
-        // Move camera
-        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(passengerLatLng, 13f));
+                        if (lat == null || lng == null || !mapReady) return;
+
+                        trainPos = new LatLng(lat, lng);
+
+                        if (trainMarker != null) trainMarker.remove();
+
+                        trainMarker = mMap.addMarker(new MarkerOptions()
+                                .position(trainPos)
+                                .title("Live Train")
+                                .anchor(0.5f, 0.5f)
+                                .icon(getResizedIcon(R.drawable.logo5, 80, 80))); // Adjusted size
+
+                        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(trainPos, 12));
+
+                        updateCurrentStation();
+                        updateETA();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {}
+                });
     }
 
-    // ================= ANIMATE PASSENGER ================  
-    private void animatePassengerMarker(LatLng newPos) {
-        if (passengerMarker == null) return;
+    private BitmapDescriptor getResizedIcon(int resourceId, int width, int height) {
+        Bitmap imageBitmap = BitmapFactory.decodeResource(getResources(), resourceId);
+        Bitmap resizedBitmap = Bitmap.createScaledBitmap(imageBitmap, width, height, false);
+        return BitmapDescriptorFactory.fromBitmap(resizedBitmap);
+    }
 
-        final LatLng start = passengerMarker.getPosition();
-        final LatLng end = newPos;
-        final long duration = 2000; // 2 sec
-        final long startTime = System.currentTimeMillis();
-        final Handler h = new Handler();
+    private void updateCurrentStation() {
+        if (trainPos == null || routePoints.isEmpty() || txtCurrentStation == null) return;
 
-        h.post(new Runnable() {
-            @Override
-            public void run() {
-                long elapsed = System.currentTimeMillis() - startTime;
-                float t = Math.min(1, (float) elapsed / duration);
-                double lat = start.latitude + t * (end.latitude - start.latitude);
-                double lng = start.longitude + t * (end.longitude - start.longitude);
-                passengerMarker.setPosition(new LatLng(lat, lng));
+        float minDistance = Float.MAX_VALUE;
+        String current = "In Transit";
 
-                if (t < 1.0) h.postDelayed(this, 16);
+        for (int i = 0; i < routePoints.size(); i++) {
+            float[] results = new float[1];
+            Location.distanceBetween(trainPos.latitude, trainPos.longitude,
+                    routePoints.get(i).latitude, routePoints.get(i).longitude, results);
+
+            if (results[0] < minDistance) {
+                minDistance = results[0];
+                current = stations.get(i);
             }
-        });
+        }
+        txtCurrentStation.setText("Current: " + current);
     }
 
-    // ================= CALCULATE ETA =================
-    private void updateEta() {
-        if (passengerLatLng == null || stationLatLng == null) return;
+    private void updateETA() {
+        if (trainPos == null || routePoints.isEmpty() || txtEta == null) return;
 
-        double earthRadius = 6371; // km
-        double dLat = Math.toRadians(stationLatLng.latitude - passengerLatLng.latitude);
-        double dLng = Math.toRadians(stationLatLng.longitude - passengerLatLng.longitude);
-        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(passengerLatLng.latitude))
-                * Math.cos(Math.toRadians(stationLatLng.latitude))
-                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        double distance = earthRadius * c; // km
+        LatLng mealPos = routePoints.get(routePoints.size() - 1);
+        float[] results = new float[1];
+        Location.distanceBetween(trainPos.latitude, trainPos.longitude,
+                mealPos.latitude, mealPos.longitude, results);
 
-        double speed = 60.0; // km/h average train
-        int etaMinutes = (int) ((distance / speed) * 60);
+        int distance = (int) results[0];
+        int travelTimeMinutes = (int) (distance / AVG_SPEED_M_PER_MIN);
+        int totalMinutes = Math.max(2, travelTimeMinutes + (stations.size() * STOP_TIME_PER_STATION));
 
-        txtEta.setText("Estimated travel time by train: " + etaMinutes + " min (" + String.format("%.2f", distance) + " km)");
+        // 2. New Time Format: Hours and Minutes
+        String timeText;
+        if (totalMinutes >= 60) {
+            int hours = totalMinutes / 60;
+            int mins = totalMinutes % 60;
+            timeText = hours + " hour " + mins + " min";
+        } else {
+            timeText = totalMinutes + " min";
+        }
+
+        txtEta.setText("ETA: ~" + timeText);
+    }
+
+    private void showToast(String msg) {
+        if (getContext() != null) Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
     }
 
     @Override
-    public void onDestroy() {
-        super.onDestroy();
-        handler.removeCallbacks(updateRunnable);
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (realtimeDb != null && trainLocationListener != null) {
+            realtimeDb.child("OrderLocations").child(orderId).child("latest").removeEventListener(trainLocationListener);
+        }
     }
 }
 
@@ -299,324 +303,5 @@ public class OrderDetailFragment extends Fragment implements OnMapReadyCallback 
 
 
 
-//package com.example.paktrainfoodapp.ui.main.Restaurant;
-//
-//import android.graphics.Bitmap;
-//import android.graphics.BitmapFactory;
-//import android.os.Bundle;
-//import android.util.Base64;
-//import android.view.LayoutInflater;
-//import android.view.View;
-//import android.view.ViewGroup;
-//import android.widget.ImageView;
-//import android.widget.TextView;
-//
-//import androidx.annotation.NonNull;
-//import androidx.annotation.Nullable;
-//import androidx.fragment.app.Fragment;
-//
-//import com.example.paktrainfoodapp.R;
-//import com.google.android.gms.maps.*;
-//import com.google.android.gms.maps.model.*;
-//import com.google.firebase.database.*;
-//import com.google.firebase.firestore.FirebaseFirestore;
-//
-//public class OrderDetailFragment extends Fragment implements OnMapReadyCallback {
-//
-//    // UI
-//    private TextView txtName, txtPrice, txtDesc;
-//    private TextView txtTrain, txtTicket, txtSeat, txtCoach, txtPhone, txtStation;
-//    private ImageView imgFood;
-//
-//    // IDs
-//    private String orderId, passengerUid;
-//
-//    // Map
-//    private GoogleMap googleMap;
-//    private LatLng passengerLatLng, stationLatLng;
-//
-//    // Firebase
-//    private FirebaseFirestore firestore;
-//    private DatabaseReference realtimeRef;
-//
-//    // ================= NEW INSTANCE =================
-//
-//    public static OrderDetailFragment newInstance(String orderId, String passengerUid) {
-//        OrderDetailFragment fragment = new OrderDetailFragment();
-//        Bundle args = new Bundle();
-//        args.putString("orderId", orderId);
-//        args.putString("passengerUid", passengerUid);
-//        fragment.setArguments(args);
-//        return fragment;
-//    }
-//
-//    // ================= ON CREATE VIEW =================
-//
-//    @Nullable
-//    @Override
-//    public View onCreateView(
-//            @NonNull LayoutInflater inflater,
-//            @Nullable ViewGroup container,
-//            @Nullable Bundle savedInstanceState
-//    ) {
-//        return inflater.inflate(R.layout.fragment_order_detail, container, false);
-//    }
-//
-//    // ================= ON VIEW CREATED =================
-//
-//    @Override
-//    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-//
-//        // UI binding
-//        txtName = view.findViewById(R.id.txtName);
-//        txtPrice = view.findViewById(R.id.txtPrice);
-//        txtDesc = view.findViewById(R.id.txtDesc);
-//
-//        txtTrain = view.findViewById(R.id.txtTrainName);
-//        txtTicket = view.findViewById(R.id.txtTicketNumber);
-//        txtSeat = view.findViewById(R.id.txtSeatNumber);
-//        txtCoach = view.findViewById(R.id.txtCoachNumber);
-//        txtPhone = view.findViewById(R.id.txtPhone);
-//        txtStation = view.findViewById(R.id.txtMealStation);
-//
-//        imgFood = view.findViewById(R.id.imgFood);
-//
-//        firestore = FirebaseFirestore.getInstance();
-//
-//        if (getArguments() != null) {
-//            orderId = getArguments().getString("orderId");
-//            passengerUid = getArguments().getString("passengerUid");
-//        }
-//
-//        // Map init
-//        SupportMapFragment mapFragment =
-//                (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
-//
-//        if (mapFragment != null) {
-//            mapFragment.getMapAsync(this);
-//        }
-//
-//        loadOrderDetail();
-//        loadPassengerLiveLocation();
-//    }
-//
-//    // ================= LOAD ORDER DETAIL (FIRESTORE) =================
-//
-//    private void loadOrderDetail() {
-//
-//        firestore.collection("Users")
-//                .document("Passenger")
-//                .collection("OrderNow")
-//                .document(passengerUid)
-//                .collection("Orders")
-//                .document(orderId)
-//                .get()
-//                .addOnSuccessListener(doc -> {
-//
-//                    if (!doc.exists()) return;
-//
-//                    txtName.setText(doc.getString("itemName"));
-//                    txtPrice.setText("Rs. " + doc.getDouble("itemPrice"));
-//                    txtDesc.setText(doc.getString("itemDesc"));
-//
-//                    txtTrain.setText(doc.getString("trainName"));
-//                    txtTicket.setText(doc.getString("ticketNumber"));
-//                    txtSeat.setText(doc.getString("seatNumber"));
-//                    txtCoach.setText(doc.getString("coachNumber"));
-//                    txtPhone.setText(doc.getString("phone"));
-//                    txtStation.setText(doc.getString("mealStation"));
-//
-//                    loadImage(doc.getString("itemImage"));
-//
-//                    // Station location
-//                    loadStationLocation(doc.getString("mealStation"));
-//                });
-//    }
-//
-//    // ================= IMAGE =================
-//
-//    private void loadImage(String base64) {
-//        if (base64 == null || base64.isEmpty()) {
-//            imgFood.setImageResource(R.drawable.ic_food_placeholder);
-//            return;
-//        }
-//
-//        try {
-//            byte[] data = Base64.decode(base64, Base64.DEFAULT);
-//            Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
-//            imgFood.setImageBitmap(bmp);
-//        } catch (Exception e) {
-//            imgFood.setImageResource(R.drawable.ic_food_placeholder);
-//        }
-//    }
-//
-//    // ================= STATION LOCATION (FIRESTORE) =================
-//
-//    private void loadStationLocation(String stationName) {
-//
-//        firestore.collection("Users")
-//                .document("StationLocation")
-//                .collection("Stations")
-//                .document(stationName)
-//                .get()
-//                .addOnSuccessListener(doc -> {
-//
-//                    if (!doc.exists()) return;
-//
-//                    Double lat = doc.getDouble("lat");
-//                    Double lng = doc.getDouble("lng");
-//
-//                    if (lat != null && lng != null) {
-//                        stationLatLng = new LatLng(lat, lng);
-//                        updateMap();
-//                    }
-//                });
-//    }
-//
-//    // ================= PASSENGER LIVE LOCATION (REALTIME DB) =================
-//
-//    private void loadPassengerLiveLocation() {
-//
-//        if (orderId == null || orderId.isEmpty()) return;
-//
-//        DatabaseReference ref = FirebaseDatabase.getInstance()
-//                .getReference()
-//                .child("Orders")
-//                .child(orderId)
-//                .child("passengerLocation");
-//
-//        ref.addValueEventListener(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(@NonNull DataSnapshot snapshot) {
-//
-//                if (!snapshot.exists()) return;
-//
-//                Double lat = snapshot.child("lat").getValue(Double.class);
-//                Double lng = snapshot.child("lng").getValue(Double.class);
-//
-//                if (lat != null && lng != null) {
-//                    passengerLatLng = new LatLng(lat, lng);
-//
-//                }
-//            }
-//
-//            @Override
-//            public void onCancelled(@NonNull DatabaseError error) {
-//                // optional
-//            }
-//        });
-//    }
-//
-//
-//    // ================= MAP READY =================
-//
-//    @Override
-//    public void onMapReady(@NonNull GoogleMap map) {
-//        googleMap = map;
-//        updateMap();
-//    }
-//
-//    // ================= UPDATE MAP =================
-//
-//    private void updateMap() {
-//
-//        if (googleMap == null ||
-//                passengerLatLng == null ||
-//                stationLatLng == null) return;
-//
-//        googleMap.clear();
-//
-//        googleMap.addMarker(new MarkerOptions()
-//                .position(passengerLatLng)
-//                .title("Passenger"));
-//
-//        googleMap.addMarker(new MarkerOptions()
-//                .position(stationLatLng)
-//                .title("Meal Station"));
-//
-//        googleMap.moveCamera(
-//                CameraUpdateFactory.newLatLngZoom(passengerLatLng, 14f)
-//        );
-//    }
-//}
 
 
-
-
-
-
-
-//package com.example.paktrainfoodapp.ui.main.Restaurant;
-//
-//import android.os.Bundle;
-//import android.view.*;
-//import android.widget.*;
-//import android.graphics.Bitmap;
-//import android.graphics.BitmapFactory;
-//import android.util.Base64;
-//import androidx.annotation.NonNull;
-//import androidx.annotation.Nullable;
-//import androidx.fragment.app.Fragment;
-//import com.example.paktrainfoodapp.R;
-//
-//public class OrderDetailFragment extends Fragment {
-//
-//    private TextView txtName, txtPrice, txtDesc, txtPassengerUid;
-//    private ImageView imgFood;
-//
-//    public static OrderDetailFragment newInstance(String name, double price,
-//                                                  String desc, String image,
-//                                                  String passengerUid) {
-//        OrderDetailFragment fragment = new OrderDetailFragment();
-//        Bundle args = new Bundle();
-//        args.putString("itemName", name);
-//        args.putDouble("itemPrice", price);
-//        args.putString("itemDesc", desc);
-//        args.putString("itemImage", image);
-//        args.putString("passengerUid", passengerUid);
-//        fragment.setArguments(args);
-//        return fragment;
-//    }
-//
-//    @Nullable
-//    @Override
-//    public View onCreateView(@NonNull LayoutInflater inflater,
-//                             @Nullable ViewGroup container,
-//                             @Nullable Bundle savedInstanceState) {
-//        return inflater.inflate(R.layout.fragment_order_detail, container, false);
-//    }
-//
-//    @Override
-//    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-//        txtName = view.findViewById(R.id.txtName);
-//        txtPrice = view.findViewById(R.id.txtPrice);
-//        txtDesc = view.findViewById(R.id.txtDesc);
-//        txtPassengerUid = view.findViewById(R.id.passengerUid);
-//        imgFood = view.findViewById(R.id.imgFood);
-//
-//        if (getArguments() != null) {
-//            String itemName = getArguments().getString("itemName");
-//            double itemPrice = getArguments().getDouble("itemPrice");
-//            String itemDesc = getArguments().getString("itemDesc");
-//            String itemImage = getArguments().getString("itemImage");
-//            String passengerUid = getArguments().getString("passengerUid");
-//
-//            txtName.setText(itemName);
-//            txtPrice.setText("Rs. " + itemPrice);
-//            txtDesc.setText(itemDesc);
-//            txtPassengerUid.setText("Passenger UID: " + passengerUid);
-//
-//            if (itemImage != null && !itemImage.isEmpty()) {
-//                try {
-//                    byte[] dec = Base64.decode(itemImage, Base64.DEFAULT);
-//                    Bitmap bmp = BitmapFactory.decodeByteArray(dec, 0, dec.length);
-//                    imgFood.setImageBitmap(bmp);
-//                } catch (Exception e) {
-//                    imgFood.setImageResource(R.drawable.ic_food_placeholder);
-//                }
-//            } else {
-//                imgFood.setImageResource(R.drawable.ic_food_placeholder);
-//            }
-//        }
-//    }
-//}

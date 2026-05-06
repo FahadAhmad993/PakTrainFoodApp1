@@ -2,61 +2,42 @@ package com.example.paktrainfoodapp.ui.main.Passenger;
 
 public class PassengerLocationModel {
 
+    private String orderId;
     private String passengerUid;
-    private double passengerLat;
-    private double passengerLng;
+    private String station;
+    private double lat;
+    private double lng;
     private long timestamp;
 
-    public PassengerLocationModel() {
-        // Firestore ke liye empty constructor zaruri hai
-    }
+    public PassengerLocationModel() {}
 
-    public PassengerLocationModel(String passengerUid, double passengerLat, double passengerLng, long timestamp) {
+    public PassengerLocationModel(String orderId, String passengerUid, String station,
+                                  double lat, double lng, long timestamp) {
+        this.orderId = orderId;
         this.passengerUid = passengerUid;
-        this.passengerLat = passengerLat;
-        this.passengerLng = passengerLng;
+        this.station = station;
+        this.lat = lat;
+        this.lng = lng;
         this.timestamp = timestamp;
     }
 
-    public String getPassengerUid() {
-        return passengerUid;
-    }
+    public String getOrderId() { return orderId; }
+    public String getPassengerUid() { return passengerUid; }
+    public String getStation() { return station; }
+    public double getLat() { return lat; }
+    public double getLng() { return lng; }
+    public long getTimestamp() { return timestamp; }
 
-    public void setPassengerUid(String passengerUid) {
-        this.passengerUid = passengerUid;
-    }
-
-    public double getPassengerLat() {
-        return passengerLat;
-    }
-
-    public void setPassengerLat(double passengerLat) {
-        this.passengerLat = passengerLat;
-    }
-
-    public double getPassengerLng() {
-        return passengerLng;
-    }
-
-    public void setPassengerLng(double passengerLng) {
-        this.passengerLng = passengerLng;
-    }
-
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    @Override
-    public String toString() {
-        return "PassengerLocationModel{" +
-                "passengerUid='" + passengerUid + '\'' +
-                ", passengerLat=" + passengerLat +
-                ", passengerLng=" + passengerLng +
-                ", timestamp=" + timestamp +
-                '}';
-    }
+    public void setOrderId(String orderId) { this.orderId = orderId; }
+    public void setPassengerUid(String passengerUid) { this.passengerUid = passengerUid; }
+    public void setStation(String station) { this.station = station; }
+    public void setLat(double lat) { this.lat = lat; }
+    public void setLng(double lng) { this.lng = lng; }
+    public void setTimestamp(long timestamp) { this.timestamp = timestamp; }
 }
+
+
+
+
+
+
