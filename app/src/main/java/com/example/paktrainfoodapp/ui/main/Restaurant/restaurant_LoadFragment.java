@@ -11,11 +11,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import com.example.paktrainfoodapp.R;
-import com.example.paktrainfoodapp.ui.main.Restaurant.resturent_DashboardFragment;
-import com.example.paktrainfoodapp.ui.main.Restaurant.resturent_MenuFragment;
-import com.example.paktrainfoodapp.ui.main.Restaurant.returent_OrdersFragment;
-import com.example.paktrainfoodapp.ui.main.Restaurant.resturent_DeliveryFragment;
-import com.example.paktrainfoodapp.ui.main.Restaurant.resturent_ProfileFragment;
 
 public class restaurant_LoadFragment extends Fragment {
 

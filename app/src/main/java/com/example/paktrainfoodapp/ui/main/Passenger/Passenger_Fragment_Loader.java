@@ -15,18 +15,18 @@ import androidx.fragment.app.Fragment;
 
 import com.example.paktrainfoodapp.R;
 
-public class PassengerDashboardFragment extends Fragment {
+public class Passenger_Fragment_Loader extends Fragment {
 
     private LinearLayout btnMenu, btnOrder, btnDashboard, btnCart, btnProfile;
 
-    public PassengerDashboardFragment() { }
+    public Passenger_Fragment_Loader() { }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_passenger_dashboard, container, false);
+        return inflater.inflate(R.layout.fragment_passenger_load_fragment, container, false);
     }
 
     @Override
@@ -115,6 +115,4 @@ public class PassengerDashboardFragment extends Fragment {
 //        selectedBtn.setBackgroundResource(R.drawable.selected_circle_bg);
     }
 }
-
-
 

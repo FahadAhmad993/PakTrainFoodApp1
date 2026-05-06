@@ -2,16 +2,16 @@ package com.example.paktrainfoodapp.ui.main.Delivery;
 
 public class DeliveryBoyModel {
 
-    private String uid;          // Firebase document ID
-    private String name;         // Delivery boy name
-    private String phone;        // Phone number
-    private String email;        // Email
-    private String city;         // City
-    private String imageBase64;  // Image in Base64 string format
+    private String uid;
+    private String name;
+    private String phone;
+    private String email;
+    private String city;
+    private String imageBase64;
 
     private String docPath;
 
-    private String passengerUid;  // 🔹 Add this field
+    private String passengerUid;
 
     // Getters and Setters
     public String getPassengerUid() {
@@ -21,7 +21,7 @@ public class DeliveryBoyModel {
         this.passengerUid = passengerUid;
     }
 
-    // 🔹 Empty constructor (required for Firestore deserialization)
+    // 🔹 Empty constructor (required for firestore deserialization)
     public DeliveryBoyModel() {
     }
 
