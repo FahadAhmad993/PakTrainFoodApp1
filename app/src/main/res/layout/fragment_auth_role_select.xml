@@ -22,7 +22,7 @@
         android:layout_height="match_parent"
         android:background="#E6000000" />
 
-    <!-- Content: Centered -->
+    <!-- Content: Center -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"

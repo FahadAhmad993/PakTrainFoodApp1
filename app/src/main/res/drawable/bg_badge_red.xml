@@ -2,3 +2,4 @@
     <solid android:color="@color/red" />
     <corners android:radius="8dp" />
 </shape>
+<!--It is a red color-->
