@@ -1,0 +1,266 @@
+.train-routes-wrapper {
+  padding: 2rem;
+  background-color: #f4f7fe;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+}
+
+.train-routes-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.back-btn {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  background: white;
+  border: 1px solid #e0e4f1;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #4318FF;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  background: #f4f7fe;
+  border-color: #4318FF;
+}
+
+.train-routes-header h1 {
+  font-size: 1.8rem;
+  color: #2b3674;
+  margin: 0;
+}
+
+.btn-primary {
+  padding: 0.75rem 1.5rem;
+  background-color: #4318FF;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: #3311cc;
+}
+
+.btn-secondary {
+  padding: 0.75rem 1.5rem;
+  background-color: transparent;
+  color: #a3aed1;
+  border: 1px solid #e0e4f1;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: #f4f7fe;
+  color: #2b3674;
+}
+
+.train-routes-content .card {
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.train-routes-content h2 {
+  margin-top: 0;
+  color: #2b3674;
+  margin-bottom: 0.5rem;
+}
+
+.train-routes-content p {
+  color: #a3aed1;
+  margin-bottom: 2rem;
+}
+
+.routes-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.routes-table th, .routes-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e4f1;
+  vertical-align: middle;
+}
+
+.routes-table th {
+  color: #a3aed1;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.routes-table td {
+  color: #2b3674;
+  font-weight: 500;
+}
+
+.font-medium {
+  font-weight: 600;
+}
+
+.text-dark {
+  color: #2b3674;
+}
+
+.status {
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status.active {
+  background-color: #e5f8ed;
+  color: #05cd99;
+}
+
+.status.delayed {
+  background-color: #fff1e6;
+  color: #ff8f3d;
+}
+
+.status.pending {
+  background-color: #f4f7fe;
+  color: #4318ff;
+}
+
+.status.maintenance {
+  background-color: #fce8e8;
+  color: #ee5d50;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-manage {
+  padding: 0.4rem 0.8rem;
+  background-color: #e5f8ed;
+  color: #05cd99;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-manage:hover {
+  background-color: #05cd99;
+  color: white;
+}
+
+.btn-delete {
+  padding: 0.4rem 0.8rem;
+  background-color: #fce8e8;
+  color: #ee5d50;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-delete:hover {
+  background-color: #ee5d50;
+  color: white;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(11, 20, 55, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: white;
+  padding: 2.5rem;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-content h2 {
+  color: #2b3674;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #2b3674;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e0e4f1;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  color: #2b3674;
+  background-color: #fcfcfd;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #4318FF;
+  background-color: white;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}

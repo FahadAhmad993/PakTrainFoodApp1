@@ -30,24 +30,26 @@ const Login = () => {
         auth,
         email,
         password
-        
       );
 
       const user = userCredential.user;
 
       // Check Admin in Firestore
       const adminRef = doc(db, 'admins', user.uid);
-
       const adminSnap = await getDoc(adminRef);
 
       if (adminSnap.exists()) {
 
-        const adminData = adminSnap.data();
+        const adminData = adminSnap.data(); // ✅ FIXED
+
+        // 👉 STORE ROLE (IMPORTANT)
+        localStorage.setItem("role", adminData.role);
 
         console.log('Admin Role:', adminData.role);
 
         setError('');
 
+        // 👉 GO TO DASHBOARD
         navigate('/dashboard');
 
       } else {
@@ -61,7 +63,7 @@ const Login = () => {
       console.log("Firebase Error:", error.code);
       console.log("Firebase Message:", error.message);
 
-  setError(error.message);
+      setError(error.message);
 
     }
 

@@ -65,6 +65,19 @@ const Dashboard = () => {
               {item.name}
             </button>
           ))}
+          
+          <div style={{ height: '1px', backgroundColor: '#e0e4f1', margin: '1rem 1.25rem' }}></div>
+          <span style={{ display: 'block', padding: '0 1.25rem', fontSize: '0.75rem', fontWeight: 'bold', color: '#a3aed1', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Other Routes</span>
+          
+          <button
+            onClick={() => navigate('/train-routes')}
+            className="nav-item"
+          >
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            Train Routes
+          </button>
         </nav>
 
         <div className="sidebar-footer">
