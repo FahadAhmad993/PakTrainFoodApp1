@@ -16,16 +16,15 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  width: 100%;
 }
 
-.header-info h1 {
-  font-size: 2rem;
+.train-details-header h1 {
+  font-size: 1.8rem;
   color: #2b3674;
   margin: 0 0 0.5rem 0;
 }
 
-.header-info h1 span {
+.train-details-header h1 span {
   font-size: 1.2rem;
   color: #a3aed1;
   font-weight: 500;
@@ -34,14 +33,13 @@
 .route-subtitle {
   color: #4318FF;
   font-weight: 600;
-  font-size: 1.1rem;
   margin: 0;
+  font-size: 1.1rem;
 }
 
-/* Timeline specific styles */
 .timeline-card {
   background: white;
-  padding: 2.5rem;
+  padding: 2rem;
   border-radius: 16px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
@@ -54,7 +52,7 @@
 
 .timeline-card p {
   color: #a3aed1;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .stations-timeline {
@@ -65,47 +63,55 @@
 
 .timeline-item {
   display: flex;
-  min-height: 80px;
+  gap: 1.5rem;
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
 }
 
 .timeline-marker {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-right: 1.5rem;
-  width: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .marker-dot {
   width: 16px;
   height: 16px;
-  background-color: white;
-  border: 4px solid #4318FF;
+  background-color: #4318FF;
   border-radius: 50%;
+  border: 4px solid #e5f8ed;
+  box-shadow: 0 0 0 2px #4318FF;
   z-index: 2;
 }
 
 .marker-line {
   width: 2px;
-  flex-grow: 1;
+  height: calc(100% + 1.5rem);
   background-color: #e0e4f1;
-  margin-top: 4px;
-  margin-bottom: 4px;
+  position: absolute;
+  top: 16px;
+  z-index: 1;
 }
 
 .timeline-content {
-  flex-grow: 1;
+  flex: 1;
+  background-color: #f4f7fe;
+  padding: 1.25rem;
+  border-radius: 12px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  padding-bottom: 2rem;
-  padding-top: -4px; /* align with dot */
+  align-items: center;
 }
 
 .station-info h3 {
   margin: 0 0 0.5rem 0;
   color: #2b3674;
-  font-size: 1.2rem;
 }
 
 .station-times {
@@ -115,48 +121,50 @@
 
 .time-badge {
   font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 6px;
+  font-weight: 600;
 }
 
 .time-badge.arr {
-  background-color: #e5f8ed;
-  color: #05cd99;
-}
-
-.time-badge.dep {
   background-color: #fff1e6;
   color: #ff8f3d;
 }
 
-.btn-icon-delete {
-  background: transparent;
-  border: none;
-  color: #a3aed1;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.btn-icon-delete svg {
-  width: 20px;
-  height: 20px;
-}
-
-.btn-icon-delete:hover {
-  background-color: #fce8e8;
-  color: #ee5d50;
+.time-badge.dep {
+  background-color: #e5f8ed;
+  color: #05cd99;
 }
 
 .no-stations {
   text-align: center;
-  color: #a3aed1;
   padding: 2rem;
-  background: #fcfcfd;
-  border-radius: 12px;
-  border: 1px dashed #e0e4f1;
+  color: #a3aed1;
+  font-style: italic;
+}
+
+.btn-icon-delete {
+  background: white;
+  border: 1px solid #ffedf1;
+  color: #ff4d4d;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-icon-delete:hover {
+  background: #ff4d4d;
+  color: white;
+}
+
+.btn-icon-delete svg {
+  width: 18px;
+  height: 18px;
 }
 
 .form-row {
@@ -164,6 +172,6 @@
   gap: 1rem;
 }
 
-.form-group.half {
+.form-row .half {
   flex: 1;
 }

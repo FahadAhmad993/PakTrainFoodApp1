@@ -100,7 +100,6 @@
   padding: 1rem;
   text-align: left;
   border-bottom: 1px solid #e0e4f1;
-  vertical-align: middle;
 }
 
 .routes-table th {
@@ -144,50 +143,6 @@
 .status.pending {
   background-color: #f4f7fe;
   color: #4318ff;
-}
-
-.status.maintenance {
-  background-color: #fce8e8;
-  color: #ee5d50;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.btn-manage {
-  padding: 0.4rem 0.8rem;
-  background-color: #e5f8ed;
-  color: #05cd99;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-manage:hover {
-  background-color: #05cd99;
-  color: white;
-}
-
-.btn-delete {
-  padding: 0.4rem 0.8rem;
-  background-color: #fce8e8;
-  color: #ee5d50;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-delete:hover {
-  background-color: #ee5d50;
-  color: white;
 }
 
 /* Modal Styles */
