@@ -61,6 +61,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/edit_text_email"
                         android:layout_width="match_parent"
@@ -92,7 +93,7 @@
                     android:text="Forgot Password?"
                     android:textColor="?attr/colorPrimary"
                     android:padding="4dp"
-                    android:layout_gravity="end"
+                     android:layout_gravity="end"
                     android:clickable="true"
                     android:focusable="true"
                     android:layout_marginBottom="24dp" />
@@ -107,6 +108,9 @@
                     android:textSize="18sp"
                     android:layout_marginBottom="24dp"
                     app:cornerRadius="12dp" />
+
+<!--                button ka agr color change krna ho like green then write-->
+
 
                 <!-- Register Link -->
                 <LinearLayout

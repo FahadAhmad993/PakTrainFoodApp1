@@ -203,36 +203,58 @@ public class ActiveOrdersFragment extends Fragment {
             }
 
             holder.btnDeleteOrder.setOnClickListener(v -> {
+
                 new AlertDialog.Builder(fragment.requireContext())
                         .setTitle("Delete Order")
                         .setMessage("Are you sure you want to delete this order?")
                         .setPositiveButton("Yes", (dialog, which) -> {
+
+                            String orderId = item.getId();
+                            String restUid = item.getRestaurantUid();
+
+                            // 1️⃣ Passenger delete
                             firestore.collection("Users")
                                     .document("Passenger")
                                     .collection("OrderNow")
                                     .document(uid)
                                     .collection("Orders")
-                                    .document(item.getId())
+                                    .document(orderId)
                                     .delete()
                                     .addOnSuccessListener(aVoid -> {
-                                        String restUid = item.getRestaurantUid();
-                                        if (restUid != null && !restUid.isEmpty()) {
-                                            firestore.collection("Users")
-                                                    .document("Restaurant")
-                                                    .collection("VerifiedRegister")
-                                                    .document(restUid)
-                                                    .collection("Orders")
-                                                    .document(item.getId())
-                                                    .delete();
-                                        }
-                                        int pos = holder.getAdapterPosition();
-                                        if (pos != RecyclerView.NO_POSITION) {
-                                            items.remove(pos);
-                                            notifyItemRemoved(pos);
-                                        }
-                                        Toast.makeText(fragment.requireContext(), "Order deleted", Toast.LENGTH_SHORT).show();
+
+                                        // 2️⃣ Main Orders delete
+                                        firestore.collection("Orders")
+                                                .document(orderId)
+                                                .delete()
+                                                .addOnSuccessListener(aVoid1 -> {
+
+                                                    // 3️⃣ Restaurant delete
+                                                    if (restUid != null && !restUid.isEmpty()) {
+
+                                                        firestore.collection("Users")
+                                                                .document("Restaurant")
+                                                                .collection("VerifiedRegister")
+                                                                .document(restUid)
+                                                                .collection("Orders")
+                                                                .document(orderId)
+                                                                .delete();
+                                                    }
+
+                                                    int pos = holder.getAdapterPosition();
+                                                    if (pos != RecyclerView.NO_POSITION) {
+                                                        items.remove(pos);
+                                                        notifyItemRemoved(pos);
+                                                    }
+
+                                                    Toast.makeText(fragment.requireContext(),
+                                                            "Order deleted successfully",
+                                                            Toast.LENGTH_SHORT).show();
+                                                });
                                     })
-                                    .addOnFailureListener(e -> Toast.makeText(fragment.requireContext(), "Failed to delete order", Toast.LENGTH_SHORT).show());
+                                    .addOnFailureListener(e ->
+                                            Toast.makeText(fragment.requireContext(),
+                                                    "Delete failed: " + e.getMessage(),
+                                                    Toast.LENGTH_SHORT).show());
                         })
                         .setNegativeButton("No", null)
                         .show();
@@ -269,222 +291,3 @@ public class ActiveOrdersFragment extends Fragment {
 
 
 
-
-//package com.example.paktrainfoodapp.ui.main.Passenger;
-//
-//import android.app.AlertDialog;
-//import android.graphics.Bitmap;
-//import android.graphics.BitmapFactory;
-//import android.os.Bundle;
-//import android.util.Base64;
-//import android.view.LayoutInflater;
-//import android.view.View;
-//import android.view.ViewGroup;
-//import android.widget.Button;
-//import android.widget.ImageView;
-//import android.widget.LinearLayout;
-//import android.widget.TextView;
-//import android.widget.Toast;
-//
-//import androidx.annotation.NonNull;
-//import androidx.fragment.app.Fragment;
-//import androidx.recyclerview.widget.LinearLayoutManager;
-//import androidx.recyclerview.widget.RecyclerView;
-//
-//import com.example.paktrainfoodapp.R;
-//import com.google.firebase.auth.FirebaseAuth;
-//import com.google.firebase.firestore.FirebaseFirestore;
-//import com.google.firebase.firestore.QueryDocumentSnapshot;
-//
-//import java.util.ArrayList;
-//
-//public class ActiveOrdersFragment extends Fragment {
-//
-//    private RecyclerView recyclerView;
-//    private LinearLayout layoutNoOrders;
-//    private ArrayList<MenuitemModel> orderList;
-//    private OrdersAdapter adapter;
-//    private FirebaseFirestore firestore;
-//    private String uid;
-//
-//    @Override
-//    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
-//                             Bundle savedInstanceState) {
-//        View view = inflater.inflate(R.layout.fragment_passanger_orders_accept_pending_complete, container, false);
-//
-//        recyclerView = view.findViewById(R.id.recyclerOrders);
-//        layoutNoOrders = view.findViewById(R.id.layoutNoOrders);
-//
-//        recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-//        orderList = new ArrayList<>();
-//        firestore = FirebaseFirestore.getInstance();
-//        uid = FirebaseAuth.getInstance().getCurrentUser() != null ?
-//                FirebaseAuth.getInstance().getCurrentUser().getUid() : null;
-//
-//        if (uid == null) {
-//            recyclerView.setVisibility(View.GONE);
-//            layoutNoOrders.setVisibility(View.VISIBLE);
-//            Toast.makeText(getContext(), "Login required", Toast.LENGTH_SHORT).show();
-//            return view;
-//        }
-//
-//        adapter = new OrdersAdapter(orderList, firestore, uid, this);
-//        recyclerView.setAdapter(adapter);
-//
-//        loadOrders("Active"); // load only active orders
-//        return view;
-//    }
-//
-//    // 🔹 Firestore fetch method
-//    private void loadOrders(String status) {
-//        if (uid == null) return;
-//
-//        firestore.collection("Users")
-//                .document("Passenger")
-//                .collection("OrderNow")
-//                .document(uid)
-//                .collection("Orders")
-//                .get()
-//                .addOnSuccessListener(query -> {
-//                    orderList.clear();
-//
-//                    for (QueryDocumentSnapshot doc : query) {
-//                        String orderStatus = doc.getString("orderStatus");
-//                        if (orderStatus != null && orderStatus.equalsIgnoreCase(status)) {
-//
-//                            MenuitemModel item = new MenuitemModel();
-//                            item.setId(doc.getId());
-//                            item.setName(doc.getString("itemName"));
-//                            item.setPrice(doc.getDouble("itemPrice") != null ? doc.getDouble("itemPrice") : 0);
-//                            item.setDescription(doc.getString("itemDesc"));
-//                            item.setRestaurantName(doc.getString("restaurantName"));
-//                            item.setRestaurantUid(doc.getString("restaurantUid"));
-//                            item.setImageUrl(doc.getString("itemImage") != null ? doc.getString("itemImage") : "");
-//                            item.setOrderStatus(orderStatus);
-//
-//                            orderList.add(item);
-//                        }
-//                    }
-//
-//                    adapter.notifyDataSetChanged();
-//                    recyclerView.setVisibility(orderList.isEmpty() ? View.GONE : View.VISIBLE);
-//                    layoutNoOrders.setVisibility(orderList.isEmpty() ? View.VISIBLE : View.GONE);
-//                })
-//                .addOnFailureListener(e -> {
-//                    Toast.makeText(getContext(), "Failed to load orders: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-//                    recyclerView.setVisibility(View.GONE);
-//                    layoutNoOrders.setVisibility(View.VISIBLE);
-//                });
-//    }
-//
-//    // 🔹 Adapter class
-//    private static class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.OrderViewHolder> {
-//
-//        private final ArrayList<MenuitemModel> items;
-//        private final FirebaseFirestore firestore;
-//        private final String uid;
-//        private final Fragment fragment;
-//
-//        OrdersAdapter(ArrayList<MenuitemModel> items, FirebaseFirestore firestore, String uid, Fragment fragment) {
-//            this.items = items;
-//            this.firestore = firestore;
-//            this.uid = uid;
-//            this.fragment = fragment;
-//        }
-//
-//        @NonNull
-//        @Override
-//        public OrderViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-//            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.passanger_item_menu, parent, false);
-//            return new OrderViewHolder(v);
-//        }
-//
-//        @Override
-//        public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
-//            MenuitemModel item = items.get(position);
-//
-//            holder.txtName.setText(item.getName());
-//            holder.txtPrice.setText("Rs. " + item.getPrice());
-//            holder.txtDesc.setText(item.getDescription());
-//            holder.txtRest.setText("By " + item.getRestaurantName());
-//
-//            // 🔹 Image decoding
-//            String img = item.getImageUrl();
-//            if (img != null && !img.isEmpty()) {
-//                try {
-//                    byte[] decoded = Base64.decode(img, Base64.DEFAULT);
-//                    Bitmap bitmap = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
-//                    holder.imgFood.setImageBitmap(bitmap != null ? bitmap : BitmapFactory.decodeResource(fragment.getResources(), R.drawable.ic_food_placeholder));
-//                } catch (Exception e) {
-//                    holder.imgFood.setImageResource(R.drawable.ic_food_placeholder);
-//                }
-//            } else {
-//                holder.imgFood.setImageResource(R.drawable.ic_food_placeholder);
-//            }
-//
-//            // 🔹 Buttons visibility
-//            holder.btnAddCart.setVisibility(View.GONE);
-//            holder.btnBuyNow.setVisibility(View.GONE);
-//            holder.btnDeleteOrder.setVisibility(View.VISIBLE);
-//
-//            // 🔹 Delete order
-//            holder.btnDeleteOrder.setOnClickListener(v -> {
-//                new AlertDialog.Builder(fragment.requireContext())
-//                        .setTitle("Delete Order")
-//                        .setMessage("Are you sure you want to delete this order?")
-//                        .setPositiveButton("Yes", (dialog, which) -> {
-//                            firestore.collection("Users")
-//                                    .document("Passenger")
-//                                    .collection("OrderNow")
-//                                    .document(uid)
-//                                    .collection("Orders")
-//                                    .document(item.getId())
-//                                    .delete()
-//                                    .addOnSuccessListener(aVoid -> {
-//                                        firestore.collection("Users")
-//                                                .document("Restaurant")
-//                                                .collection("VerifiedRegister")
-//                                                .document(item.getRestaurantUid())
-//                                                .collection("Orders")
-//                                                .document(item.getId())
-//                                                .delete();
-//
-//                                        int pos = holder.getAdapterPosition();
-//                                        if(pos != RecyclerView.NO_POSITION){
-//                                            items.remove(pos);
-//                                            notifyItemRemoved(pos);
-//                                        }
-//                                        Toast.makeText(fragment.requireContext(), "Order deleted", Toast.LENGTH_SHORT).show();
-//                                    })
-//                                    .addOnFailureListener(e -> Toast.makeText(fragment.requireContext(), "Failed to delete order", Toast.LENGTH_SHORT).show());
-//                        })
-//                        .setNegativeButton("No", null)
-//                        .show();
-//            });
-//        }
-//
-//        @Override
-//        public int getItemCount() {
-//            return items.size();
-//        }
-//
-//        static class OrderViewHolder extends RecyclerView.ViewHolder {
-//            ImageView imgFood;
-//            TextView txtName, txtPrice, txtDesc, txtRest;
-//            Button btnAddCart, btnBuyNow, btnDeleteOrder;
-//
-//            OrderViewHolder(@NonNull View itemView) {
-//                super(itemView);
-//                imgFood = itemView.findViewById(R.id.imgFood);
-//                txtName = itemView.findViewById(R.id.txtName);
-//                txtPrice = itemView.findViewById(R.id.txtPrice);
-//                txtDesc = itemView.findViewById(R.id.txtDesc);
-//                txtRest = itemView.findViewById(R.id.txtRestName);
-//                btnAddCart = itemView.findViewById(R.id.btnAddCart);
-//                btnBuyNow = itemView.findViewById(R.id.btnBuyNow);
-//                btnDeleteOrder = itemView.findViewById(R.id.btnDeleteOrder);
-//            }
-//        }
-//    }
-//}
-//

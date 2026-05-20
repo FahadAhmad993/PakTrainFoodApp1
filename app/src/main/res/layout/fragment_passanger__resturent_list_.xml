@@ -1,116 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<androidx.coordinatorlayout.widget.CoordinatorLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="#F8F8F8">
 
-    <!-- Top Bar -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="12dp"
-        android:background="#FFFFFF"
-        android:elevation="4dp">
-
-        <ImageView
-            android:id="@+id/btn_back"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:src="@drawable/ic_swap"
-            app:tint="#000000" />
-
-        <TextView
-            android:id="@+id/tv_top_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Showing restaurants in Rawalpindi"
-            android:textColor="#000000"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:layout_marginLeft="12dp" />
-    </LinearLayout>
-
-    <!-- Category Horizontal Scroll -->
-    <HorizontalScrollView
+    <!-- App Bar -->
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="8dp"
-        android:background="#FFFFFF"
-        android:scrollbars="none">
+        android:background="#F8BBD0"
+        android:elevation="4dp">
 
+        <!-- Top Section -->
         <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
+            android:layout_width="match_parent"
+            android:layout_height="110dp"
+            android:orientation="vertical"
+            android:padding="12dp"
+            app:layout_scrollFlags="scroll|enterAlways">
 
+            <!-- Title -->
             <TextView
+                android:id="@+id/tv_top_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Fast Food"
-                android:padding="12dp"
-                android:background="@drawable/category_bg"
+                android:text="Available Restaurants"
                 android:textColor="#000000"
-                android:layout_marginRight="10dp" />
+                android:textStyle="bold"
+                android:textSize="26sp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Biryani"
-                android:padding="12dp"
-                android:background="@drawable/category_bg"
-                android:textColor="#000000"
-                android:layout_marginRight="10dp" />
+            <!-- Search Bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="45dp"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal"
+                android:background="@drawable/search_bg"
+                android:padding="10dp"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Nashta"
-                android:padding="12dp"
-                android:background="@drawable/category_bg"
-                android:textColor="#000000"
-                android:layout_marginRight="10dp" />
+                <!-- Search Icon -->
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_pending"
+                    app:tint="#888888" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Pizza"
-                android:padding="12dp"
-                android:background="@drawable/category_bg"
-                android:textColor="#000000"
-                android:layout_marginRight="10dp" />
+                <!-- Search Input -->
+                <EditText
+                    android:id="@+id/et_search"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:hint="Search food or restaurant"
+                    android:background="@android:color/transparent"
+                    android:paddingLeft="8dp"
+                    android:textColor="#000000"
+                    android:textColorHint="#888888" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Karahi"
-                android:padding="12dp"
-                android:background="@drawable/category_bg"
-                android:textColor="#000000"
-                android:layout_marginRight="10dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="More"
-                android:padding="12dp"
-                android:background="@drawable/category_bg"
-                android:textColor="#000000" />
+            </LinearLayout>
 
         </LinearLayout>
-    </HorizontalScrollView>
 
-    <!-- Restaurant RecyclerView -->
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_restaurants"
         android:layout_width="match_parent"
-        android:layout_weight="1"
-        android:layout_height="0dp"
-        android:padding="8dp" />
+        android:layout_height="match_parent"
+        android:padding="8dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     <!-- Progress Bar -->
     <ProgressBar
@@ -119,126 +81,11 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:visibility="gone"
-        android:indeterminate="true"
-        android:layout_marginTop="16dp"/>
-</LinearLayout>
+        android:indeterminate="true"/>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
 
 
 
 
 
-    <!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<LinearLayout-->
-<!--    xmlns:android="http://schemas.android.com/apk/res/android"-->
-<!--    xmlns:app="http://schemas.android.com/apk/res-auto"-->
-<!--    android:layout_width="match_parent"-->
-<!--    android:layout_height="match_parent"-->
-<!--    android:orientation="vertical"-->
-<!--    android:background="#F8F8F8">-->
-
-<!--    &lt;!&ndash; Top Bar &ndash;&gt;-->
-<!--    <LinearLayout-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="56dp"-->
-<!--        android:orientation="horizontal"-->
-<!--        android:gravity="center_vertical"-->
-<!--        android:padding="12dp"-->
-<!--        android:background="#FFFFFF"-->
-<!--        android:elevation="4dp">-->
-
-<!--        <ImageView-->
-<!--            android:id="@+id/btn_back"-->
-<!--            android:layout_width="28dp"-->
-<!--            android:layout_height="28dp"-->
-<!--            android:src="@drawable/ic_swap"-->
-<!--            app:tint="#000000" />-->
-
-<!--        <TextView-->
-<!--            android:id="@+id/tv_top_title"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="Showing restaurants in Rawalpindi"-->
-<!--            android:textColor="#000000"-->
-<!--            android:textStyle="bold"-->
-<!--            android:textSize="16sp"-->
-<!--            android:layout_marginLeft="12dp" />-->
-<!--    </LinearLayout>-->
-
-<!--    &lt;!&ndash; Category Horizontal Scroll &ndash;&gt;-->
-<!--    <HorizontalScrollView-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:padding="8dp"-->
-<!--        android:background="#FFFFFF"-->
-<!--        android:scrollbars="none">-->
-
-<!--        <LinearLayout-->
-<!--            android:orientation="horizontal"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content">-->
-
-<!--            <TextView-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:text="Fast Food"-->
-<!--                android:padding="12dp"-->
-<!--                android:background="@drawable/category_bg"-->
-<!--                android:textColor="#000000"-->
-<!--                android:layout_marginRight="10dp" />-->
-
-<!--            <TextView-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:text="Biryani"-->
-<!--                android:padding="12dp"-->
-<!--                android:background="@drawable/category_bg"-->
-<!--                android:textColor="#000000"-->
-<!--                android:layout_marginRight="10dp" />-->
-
-<!--            <TextView-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:text="Nashta"-->
-<!--                android:padding="12dp"-->
-<!--                android:background="@drawable/category_bg"-->
-<!--                android:textColor="#000000"-->
-<!--                android:layout_marginRight="10dp" />-->
-
-<!--            <TextView-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:text="Pizza"-->
-<!--                android:padding="12dp"-->
-<!--                android:background="@drawable/category_bg"-->
-<!--                android:textColor="#000000"-->
-<!--                android:layout_marginRight="10dp" />-->
-
-<!--            <TextView-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:text="Karahi"-->
-<!--                android:padding="12dp"-->
-<!--                android:background="@drawable/category_bg"-->
-<!--                android:textColor="#000000"-->
-<!--                android:layout_marginRight="10dp" />-->
-
-<!--            <TextView-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:text="More"-->
-<!--                android:padding="12dp"-->
-<!--                android:background="@drawable/category_bg"-->
-<!--                android:textColor="#000000" />-->
-
-<!--        </LinearLayout>-->
-<!--    </HorizontalScrollView>-->
-
-<!--    &lt;!&ndash; Restaurant RecyclerView &ndash;&gt;-->
-<!--    <androidx.recyclerview.widget.RecyclerView-->
-<!--        android:id="@+id/rv_restaurants"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_weight="1"-->
-<!--        android:layout_height="0dp"-->
-<!--        android:padding="8dp" />-->
-
-<!--</LinearLayout>-->
