@@ -339,9 +339,15 @@
   margin-bottom: 32px;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 640px) {
   .metrics-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .metrics-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -377,6 +383,7 @@
 .icon-blue { background-color: #f0f4f8; color: #1e3a8a; }
 .icon-orange { background-color: #fff7ed; color: #ea580c; }
 .icon-green { background-color: #f0fdf4; color: #16a34a; }
+.icon-purple { background-color: #f5f3ff; color: #7c3aed; }
 
 .metric-icon {
   width: 24px;

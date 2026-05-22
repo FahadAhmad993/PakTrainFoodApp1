@@ -165,7 +165,15 @@ const DashboardOverview = () => {
           iconClass="icon-orange" 
         />
         <MetricCard 
-          title="DELIVERY RIDERS" 
+          title="TOTAL PASSENGERS" 
+          value="14,780" 
+          trend="+8.4%" 
+          trendClass="trend-positive" 
+          icon="M16 7a4 4 0 11-8 0 4 4 0 018 0zm-8 8a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6z" 
+          iconClass="icon-purple" 
+        />
+        <MetricCard 
+          title="DELIVERY BOYS" 
           value="3,120" 
           trend="+48 New" 
           trendClass="trend-positive" 
