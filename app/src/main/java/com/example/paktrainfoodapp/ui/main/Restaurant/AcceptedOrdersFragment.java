@@ -1,374 +1,374 @@
 package com.example.paktrainfoodapp.ui.main.Restaurant;
 
+import static android.view.View.VISIBLE;
+
+import android.Manifest;
 import android.app.AlertDialog;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.util.Base64;
-import android.view.*;
-import android.widget.*;
+import android.os.Handler;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.example.paktrainfoodapp.R;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.*;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class AcceptedOrdersFragment extends Fragment {
 
     private RecyclerView recyclerView;
     private LinearLayout layoutNoOrders;
+
     private ArrayList<MenuItem> orderList;
     private OrdersAdapter adapter;
+
     private FirebaseFirestore firestore;
-    private FirebaseAuth auth;
+    private String restaurantUid;
+
+    private ListenerRegistration orderListener;
+
+    private final Handler timerHandler = new Handler();
+
+    // ================= LOCATION =================
+    private FusedLocationProviderClient fusedLocationClient;
+    private double restaurantLat = 0;
+    private double restaurantLng = 0;
 
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             ViewGroup container,
                              Bundle savedInstanceState) {
 
-        View view = inflater.inflate(R.layout.fragment_restaurant_orders_accept_pending_complete, container, false);
+        View view = inflater.inflate(
+                R.layout.fragment_restaurant_orders_accept_pending_complete,
+                container,
+                false
+        );
 
         recyclerView = view.findViewById(R.id.recyclerOrders);
         layoutNoOrders = view.findViewById(R.id.layoutNoOrders);
+
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+
         orderList = new ArrayList<>();
         adapter = new OrdersAdapter(orderList);
         recyclerView.setAdapter(adapter);
 
         firestore = FirebaseFirestore.getInstance();
-        auth = FirebaseAuth.getInstance();
 
-        loadOrders("Accepted");
+        restaurantUid = FirebaseAuth.getInstance().getCurrentUser() != null
+                ? FirebaseAuth.getInstance().getCurrentUser().getUid()
+                : "";
+
+        // LOCATION INIT
+        fusedLocationClient =
+                LocationServices.getFusedLocationProviderClient(requireActivity());
+
         return view;
     }
 
-    private void loadOrders(String status) {
-        String restId = auth.getCurrentUser().getUid();
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
-        // collectionGroup query for Accepted Orders
-        firestore.collectionGroup("Orders")
-                .whereEqualTo("restaurantUid", restId)
-                .whereEqualTo("orderStatus", status)
-                .get()
-                .addOnSuccessListener(query -> {
+        if (!restaurantUid.isEmpty()) {
+            loadAcceptedOrders();
+        }
+    }
+
+    // ================= LOAD ORDERS =================
+    private void loadAcceptedOrders() {
+
+        if (orderListener != null) {
+            orderListener.remove();
+        }
+
+        orderListener = firestore.collection("Orders")
+                .whereEqualTo("restaurantUid", restaurantUid)
+                .whereIn("orderStatus",
+                        java.util.Arrays.asList("Accepted", "WFR"))
+                .addSnapshotListener((query, e) -> {
+
+                    if (e != null || query == null || !isAdded()) return;
+
                     orderList.clear();
+
                     for (QueryDocumentSnapshot doc : query) {
+
                         MenuItem item = new MenuItem();
+
                         item.setId(doc.getId());
-                        item.setName(doc.getString("itemName"));
-                        item.setPrice(doc.getDouble("itemPrice") != null ? doc.getDouble("itemPrice") : 0.0);
-                        item.setDescription(doc.getString("itemDesc"));
-                        item.setImageUrl(doc.getString("itemImage"));
                         item.setPassengerUid(doc.getString("passengerUid"));
                         item.setDocPath(doc.getReference().getPath());
-                        item.setMeta(doc.getData());
+                        item.setStatus(doc.getString("orderStatus"));
+
+                        Double totalPrice = doc.getDouble("totalPrice");
+
+                        if (totalPrice != null) {
+                            Map<String, Double> map = new HashMap<>();
+                            map.put("Total", totalPrice);
+                            item.setVariations(map);
+                        }
+
                         orderList.add(item);
                     }
+
                     adapter.notifyDataSetChanged();
-                    layoutNoOrders.setVisibility(orderList.isEmpty() ? View.VISIBLE : View.GONE);
-                    recyclerView.setVisibility(orderList.isEmpty() ? View.GONE : View.VISIBLE);
-                })
-                .addOnFailureListener(e -> {
-                    recyclerView.setVisibility(View.GONE);
-                    layoutNoOrders.setVisibility(View.VISIBLE);
-                    Toast.makeText(getContext(), "Failed to load orders: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+
+                    boolean empty = orderList.isEmpty();
+
+                    recyclerView.setVisibility(empty ? View.GONE : VISIBLE);
+                    layoutNoOrders.setVisibility(empty ? VISIBLE : View.GONE);
                 });
     }
 
-    // ===================== Orders Adapter =====================
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+
+        if (orderListener != null) {
+            orderListener.remove();
+        }
+    }
+
+    // ================= LOCATION FUNCTION =================
+    private void getRestaurantLocation(Runnable callback) {
+
+        if (ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED) {
+
+            requestPermissions(
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    101
+            );
+            return;
+        }
+
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(location -> {
+
+                    if (location != null) {
+                        restaurantLat = location.getLatitude();
+                        restaurantLng = location.getLongitude();
+                    }
+
+                    callback.run();
+                });
+    }
+
+    // ================= ADAPTER =================
     private class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.ViewHolder> {
+
         private final ArrayList<MenuItem> items;
 
-        OrdersAdapter(ArrayList<MenuItem> items) { this.items = items; }
+        OrdersAdapter(ArrayList<MenuItem> items) {
+            this.items = items;
+        }
 
         @NonNull
         @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.passanger_item_menu, parent, false);
+
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.passanger_order_item_simple, parent, false);
+
             return new ViewHolder(v);
         }
 
         @Override
-        public void onBindViewHolder(@NonNull ViewHolder h, int pos) {
-            MenuItem m = items.get(pos);
+        public void onBindViewHolder(@NonNull ViewHolder h, int position) {
 
-            h.name.setText(m.getName());
-            h.price.setText("Rs. " + m.getPrice());
-            h.desc.setText(m.getDescription());
+            MenuItem m = items.get(position);
 
-            // Decode base64 image
-            if (m.getImageUrl() != null && !m.getImageUrl().isEmpty()) {
-                try {
-                    byte[] dec = Base64.decode(m.getImageUrl(), Base64.DEFAULT);
-                    Bitmap bmp = BitmapFactory.decodeByteArray(dec, 0, dec.length);
-                    if (bmp != null) h.image.setImageBitmap(bmp);
-                    else h.image.setImageResource(R.drawable.ic_food_placeholder);
-                } catch (Exception e) {
-                    h.image.setImageResource(R.drawable.ic_food_placeholder);
-                }
+            h.txtOrderId.setText("#" + m.getId());
+
+            double total = 0;
+            if (m.getVariations() != null && !m.getVariations().isEmpty()) {
+                total = m.getVariations().values().iterator().next();
+            }
+
+            h.txtTotalPrice.setText("Total: Rs " + total);
+
+            h.btnAccept.setVisibility(View.GONE);
+            h.btnDelete.setVisibility(View.GONE);
+            h.timeRow.setVisibility(View.VISIBLE);
+
+            String status = m.getStatus();
+
+            if ("WFR".equalsIgnoreCase(status)) {
+
+                h.btnReady.setEnabled(false);
+                h.btnReady.setAlpha(0.4f);
+                h.btnReady.setText("Sent to Rider");
+
             } else {
-                h.image.setImageResource(R.drawable.ic_food_placeholder);
+
+                h.btnReady.setEnabled(true);
+                h.btnReady.setAlpha(1f);
+                h.btnReady.setText("Ready For Delivery");
             }
 
-            // Hide passenger-only buttons
-            if (h.btnAddToCart != null) h.btnAddToCart.setVisibility(View.GONE);
-            if (h.btnDelete != null) h.btnDelete.setVisibility(View.GONE);
-            if (h.btnBuyNow != null) h.btnBuyNow.setVisibility(View.GONE);
+            // ================= READY BUTTON =================
+            h.btnReady.setOnClickListener(v -> {
 
-            // Show restaurant action buttons
-            if (h.btnDelivered != null) {
-                h.btnDelivered.setVisibility(View.VISIBLE);
-                h.btnDelivered.setText("Delivered To");
-                h.btnDelivered.setBackgroundTintList(
-                        h.itemView.getContext().getResources().getColorStateList(R.color.teal_500)
-                );
-                h.btnDelivered.setTextColor(
-                        h.itemView.getContext().getResources().getColor(android.R.color.white)
-                );
+                AlertDialog.Builder builder =
+                        new AlertDialog.Builder(getContext());
 
-                h.btnDelivered.setOnClickListener(v -> openDeliveryBoysDialog(m, pos));
-            }
+                builder.setTitle("Confirmation");
+                builder.setMessage("Is your food ready for delivery?");
 
-            if (h.txtBadge != null) {
-                h.txtBadge.setVisibility(View.VISIBLE);
-                h.txtBadge.setText("Accepted");
-                h.txtBadge.setBackgroundResource(R.drawable.bg_badge_green);
-            }
-        }
+                builder.setPositiveButton("Yes", (dialog, which) -> {
 
-        @Override
-        public int getItemCount() { return items.size(); }
+                    // 🔥 FIRST GET LOCATION THEN SAVE
+                    getRestaurantLocation(() -> {
 
-        class ViewHolder extends RecyclerView.ViewHolder {
-            TextView name, price, desc, txtBadge;
-            ImageView image;
-            Button btnAddToCart, btnDelete, btnBuyNow, btnDelivered;
+                        Map<String, Object> map = new HashMap<>();
 
-            ViewHolder(View v) {
-                super(v);
-                name = v.findViewById(R.id.txtName);
-                price = v.findViewById(R.id.txtPrice);
-                desc = v.findViewById(R.id.txtDesc);
-                image = v.findViewById(R.id.imgFood);
-                txtBadge = v.findViewById(R.id.txtStatusBadge);
-                btnDelivered = v.findViewById(R.id.btnDeliveredOrder);
-                btnAddToCart = v.findViewById(R.id.btnAddCart);
-                btnDelete = v.findViewById(R.id.btnDeleteOrder);
-                btnBuyNow = v.findViewById(R.id.btnBuyNow);
-            }
-        }
-    }
+                        map.put("orderStatus", "WFR");
+                        map.put("restaurantLat", restaurantLat);
+                        map.put("restaurantLng", restaurantLng);
+                        map.put("wfrTime", System.currentTimeMillis());
 
-    // ===================== Delivery Dialog =====================
-    private void openDeliveryBoysDialog(MenuItem orderItem, int orderPosition) {
-        String restId = auth.getCurrentUser().getUid();
+                        firestore.collection("Orders")
+                                .document(m.getId())
+                                .update(map);
 
-        firestore.collection("Users")
-                .document("Restaurant")
-                .collection("VerifiedRegister")
-                .document(restId)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    if (!doc.exists()) {
-                        Toast.makeText(getContext(), "Restaurant data not found", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    String city = doc.getString("city");
-                    if (city == null || city.isEmpty()) {
-                        Toast.makeText(getContext(), "City not found for restaurant", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    showDeliveryDialogForCity(orderItem, orderPosition, city);
-                })
-                .addOnFailureListener(e ->
-                        Toast.makeText(getContext(), "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-    }
+                        Toast.makeText(getContext(),
+                                "Sent to Riders",
+                                Toast.LENGTH_SHORT).show();
+                    });
 
-    private void showDeliveryDialogForCity(MenuItem orderItem, int orderPosition, String city) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-        builder.setTitle("Choose Delivery Boy (" + city + ")");
-
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.fragment_resturent__delivery, null);
-        RecyclerView rv = dialogView.findViewById(R.id.recyclerDeliveryBoys);
-        rv.setLayoutManager(new LinearLayoutManager(getContext()));
-
-        final ArrayList<DeliveryBoyInfo> deliveryList = new ArrayList<>();
-        final DeliveryAssignAdapter assignAdapter = new DeliveryAssignAdapter(deliveryList, orderItem, orderPosition);
-        rv.setAdapter(assignAdapter);
-
-        builder.setView(dialogView);
-        builder.setNegativeButton("Cancel", (d, which) -> d.dismiss());
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
-
-        firestore.collection("Users")
-                .document("Delivery")
-                .collection("VerifiedRegister")
-                .whereEqualTo("city", city)
-                .get()
-                .addOnSuccessListener(querySnapshot -> {
-                    deliveryList.clear();
-                    for (QueryDocumentSnapshot doc : querySnapshot) {
-                        DeliveryBoyInfo info = new DeliveryBoyInfo();
-                        info.uid = doc.getId();
-                        info.name = doc.getString("name");
-                        info.phone = doc.getString("phone");
-                        info.email = doc.getString("email");
-                        info.onlineStatus = doc.getString("onlineStatus");
-                        deliveryList.add(info);
-                    }
-
-                    for (DeliveryBoyInfo b : deliveryList) {
-                        firestore.collection("Users")
-                                .document("Delivery")
-                                .collection("Register")
-                                .document(b.uid)
-                                .get()
-                                .addOnSuccessListener(imageDoc -> {
-                                    if (imageDoc.exists()) {
-                                        String base64 = imageDoc.getString("imageBase64");
-                                        b.imageBase64 = base64;
-                                        int idx = deliveryList.indexOf(b);
-                                        if (idx != -1) assignAdapter.notifyItemChanged(idx);
-                                    }
-                                });
-                    }
-
-                    assignAdapter.notifyDataSetChanged();
-                })
-                .addOnFailureListener(e ->
-                        Toast.makeText(getContext(), "Error loading delivery boys: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-    }
-
-    // ===================== Delivery Adapter =====================
-    private class DeliveryAssignAdapter extends RecyclerView.Adapter<DeliveryAssignAdapter.DBViewHolder> {
-        private final ArrayList<DeliveryBoyInfo> list;
-        private final MenuItem order;
-        private final int orderPos;
-
-        DeliveryAssignAdapter(ArrayList<DeliveryBoyInfo> list, MenuItem order, int orderPos) {
-            this.list = list;
-            this.order = order;
-            this.orderPos = orderPos;
-        }
-
-        @NonNull
-        @Override
-        public DBViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_delivery_boy, parent, false);
-            return new DBViewHolder(v);
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull DBViewHolder h, int pos) {
-            DeliveryBoyInfo b = list.get(pos);
-
-            h.tvName.setText(b.name != null ? b.name : "No Name");
-            h.tvPhone.setText(b.phone != null ? b.phone : "No Phone");
-            h.tvEmail.setText(b.email != null ? b.email : "No Email");
-            h.txtDeliveryOnlineStatus.setText(b.onlineStatus != null ? b.onlineStatus : "Offline");
-
-            if (b.imageBase64 != null) {
-                try {
-                    byte[] dec = Base64.decode(b.imageBase64, Base64.DEFAULT);
-                    Bitmap bmp = BitmapFactory.decodeByteArray(dec, 0, dec.length);
-                    if (bmp != null) h.imgDeliveryBoy.setImageBitmap(bmp);
-                } catch (Exception ignored) {}
-            }
-
-            h.btnDeliverOrder.setOnClickListener(v -> {
-                h.btnDeliverOrder.setEnabled(false);
-                assignOrderToDeliveryBoy(order, orderPos, b.uid, success -> {
-                    if (success) {
-                        Toast.makeText(v.getContext(), "Order assigned to " + b.name, Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(v.getContext(), "Failed to assign", Toast.LENGTH_SHORT).show();
-                        h.btnDeliverOrder.setEnabled(true);
-                    }
                 });
+
+                builder.setNegativeButton("No", (d, w) -> d.dismiss());
+
+                builder.show();
+            });
+
+            // ================= DETAIL =================
+            h.itemView.setOnClickListener(v -> {
+
+                Fragment detailFragment =
+                        OrderDetailFragment.newInstance(m.getId());
+
+                requireActivity()
+                        .getSupportFragmentManager()
+                        .beginTransaction()
+                        .replace(R.id.main_container, detailFragment)
+                        .addToBackStack("order_detail")
+                        .commit();
+            });
+
+            // ================= TIMER =================
+            DocumentReference orderRef =
+                    firestore.collection("Orders")
+                            .document(m.getId());
+
+            orderRef.addSnapshotListener((doc, error) -> {
+
+                if (doc == null || !doc.exists()) return;
+
+                Long etaEndTime = doc.getLong("etaEndTime");
+
+                if (etaEndTime == null) return;
+
+                Runnable runnable = new Runnable() {
+                    @Override
+                    public void run() {
+
+                        long remaining =
+                                etaEndTime - System.currentTimeMillis();
+
+                        if (remaining > 0) {
+
+                            long mins = remaining / (60 * 1000);
+                            long secs = (remaining / 1000) % 60;
+                            long hrs = mins / 60;
+
+                            mins = mins % 60;
+
+                            String etaText;
+
+                            if (hrs > 0) {
+                                etaText = hrs + " hr " + mins + " min";
+                            } else {
+                                etaText = mins + " min " + secs + " sec";
+                            }
+
+                            h.txtTimer.setText(etaText);
+
+                            timerHandler.postDelayed(this, 1000);
+
+                        } else {
+                            h.txtTimer.setText("Arriving");
+                        }
+                    }
+                };
+
+                runnable.run();
             });
         }
 
         @Override
-        public int getItemCount() { return list.size(); }
+        public int getItemCount() {
+            return items.size();
+        }
 
-        class DBViewHolder extends RecyclerView.ViewHolder {
-            TextView tvName, tvPhone, tvEmail, txtDeliveryOnlineStatus;
-            ImageView imgDeliveryBoy;
-            Button btnDeliverOrder;
+        class ViewHolder extends RecyclerView.ViewHolder {
 
-            DBViewHolder(View v) {
-                super(v);
-                tvName = v.findViewById(R.id.tvName);
-                tvPhone = v.findViewById(R.id.tvPhone);
-                tvEmail = v.findViewById(R.id.tvEmail);
-                txtDeliveryOnlineStatus = new TextView(v.getContext());
-                btnDeliverOrder = v.findViewById(R.id.btnDeliverOrder);
-                imgDeliveryBoy = v.findViewById(R.id.imgDeliveryBoy);
+            TextView txtOrderId, txtTotalPrice, txtTimer;
+            ImageView btnDelete, btnAccept;
+            android.widget.Button btnReady;
+            LinearLayout timeRow;
+
+            ViewHolder(@NonNull View itemView) {
+                super(itemView);
+
+                txtOrderId = itemView.findViewById(R.id.txtOrderId);
+                txtTotalPrice = itemView.findViewById(R.id.txtTotalPrice);
+                txtTimer = itemView.findViewById(R.id.txtTimer);
+
+                btnDelete = itemView.findViewById(R.id.btnDelete);
+                btnAccept = itemView.findViewById(R.id.btnAccept);
+
+                btnReady = itemView.findViewById(R.id.btnReady);
+                timeRow = itemView.findViewById(R.id.timeRow);
             }
         }
     }
-
-    // ===================== Assign Logic =====================
-    private void assignOrderToDeliveryBoy(MenuItem order, int orderPos, String deliveryUid, AssignmentCallback callback) {
-        if (order == null || order.getId() == null || order.getDocPath() == null) {
-            callback.onComplete(false);
-            return;
-        }
-
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("orderStatus", "Assigned");
-        updates.put("assignedTo", deliveryUid);
-        updates.put("assignedAt", FieldValue.serverTimestamp());
-
-        DocumentReference orderRef = firestore.document(order.getDocPath());
-        orderRef.update(updates)
-                .addOnSuccessListener(aVoid -> {
-                    Map<String, Object> orderData = new HashMap<>();
-                    if (order.getMeta() != null) orderData.putAll(order.getMeta());
-                    orderData.put("orderStatus", "New");
-                    orderData.put("assignedTo", deliveryUid);
-                    orderData.put("assignedFromRestaurant", auth.getCurrentUser().getUid());
-                    orderData.put("originalOrderId", order.getId());
-                    orderData.put("assignedAt", FieldValue.serverTimestamp());
-
-                    DocumentReference deliveryOrderRef = firestore.collection("Users")
-                            .document("Delivery")
-                            .collection("VerifiedRegister")
-                            .document(deliveryUid)
-                            .collection("Orders")
-                            .document(order.getId());
-
-                    deliveryOrderRef.set(orderData)
-                            .addOnSuccessListener(v -> {
-                                if (orderPos >= 0 && orderPos < orderList.size()) {
-                                    orderList.remove(orderPos);
-                                    adapter.notifyItemRemoved(orderPos);
-                                }
-                                callback.onComplete(true);
-                            })
-                            .addOnFailureListener(e -> callback.onComplete(false));
-                })
-                .addOnFailureListener(e -> callback.onComplete(false));
-    }
-
-    private interface AssignmentCallback {
-        void onComplete(boolean success);
-    }
-
-    private static class DeliveryBoyInfo {
-        String uid;
-        String name;
-        String phone;
-        String email;
-        String onlineStatus;
-        String imageBase64;
-    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

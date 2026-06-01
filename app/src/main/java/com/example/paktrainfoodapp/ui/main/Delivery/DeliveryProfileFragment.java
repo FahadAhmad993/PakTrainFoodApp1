@@ -1,23 +1,23 @@
 package com.example.paktrainfoodapp.ui.main.Delivery;
 
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.bumptech.glide.Glide;
 import com.example.paktrainfoodapp.R;
 import com.example.paktrainfoodapp.Splash;
+import com.example.paktrainfoodapp.utils.PrefManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 
@@ -29,6 +29,7 @@ public class DeliveryProfileFragment extends Fragment {
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
+    private PrefManager prefManager;
 
     @Nullable
     @Override
@@ -40,6 +41,8 @@ public class DeliveryProfileFragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
         profileImage = view.findViewById(R.id.img_delivery_profile);
         txtName = view.findViewById(R.id.txt_delivery_name);
         txtEmail = view.findViewById(R.id.txt_delivery_email);
@@ -47,6 +50,7 @@ public class DeliveryProfileFragment extends Fragment {
 
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
+        prefManager = new PrefManager(requireContext());
 
         if (mAuth.getCurrentUser() != null) {
             loadUserData();
@@ -56,7 +60,12 @@ public class DeliveryProfileFragment extends Fragment {
         }
 
         btnLogout.setOnClickListener(v -> {
-            if (mAuth != null) mAuth.signOut();
+            if (mAuth != null) {
+                mAuth.signOut();
+            }
+
+            // 🔄 Shared Preferences se login state reset karein
+            prefManager.setLogin(false);
 
             if (getActivity() != null) {
                 getActivity().finish();
@@ -69,41 +78,44 @@ public class DeliveryProfileFragment extends Fragment {
     private void loadUserData() {
         String uid = mAuth.getCurrentUser().getUid();
 
-        // ✅ Updated Firestore path according to new structure
+        // 🔄 Path aapki naye sequential verification architecture ke mutabiq "VerifiedRegister" par set kar diya hai
         db.collection("Users")
                 .document("Delivery")
-                .collection("Register")
+                .collection("VerifiedRegister")
                 .document(uid)
                 .get()
                 .addOnSuccessListener(snapshot -> {
-                    if (snapshot.exists()) {
-                        txtName.setText(snapshot.getString("name"));
-                        txtEmail.setText(snapshot.getString("email"));
+                    if (isAdded() && snapshot.exists()) {
 
-                        // Get Base64 string (image)
-                        String base64Image = snapshot.getString("imageBase64");
-                        if (base64Image != null && !base64Image.isEmpty()) {
-                            Bitmap bitmap = base64ToBitmap(base64Image);
-                            if (bitmap != null) {
-                                profileImage.setImageBitmap(bitmap);
-                            }
+                        // Firestore se clean fields fetch karein
+                        String deliveryBoyName = snapshot.getString("name");
+                        String email = snapshot.getString("email");
+
+                        // 🖼️ ImgBB sequential upload se jo URL "cnicFrontImageUrl" ya "licenseImageUrl" banna tha, woh yahan call hoga
+                        String imageUrl = snapshot.getString("cnicFrontImageUrl");
+
+                        txtName.setText(deliveryBoyName != null ? deliveryBoyName : "No Name");
+                        txtEmail.setText(email != null ? email : "No Email");
+
+
+                        if (imageUrl != null && !imageUrl.isEmpty()) {
+                            Glide.with(this)
+                                    .load(imageUrl)
+                                    .placeholder(R.drawable.ic_launcher_background) // Default temporary image
+                                    .error(R.drawable.ic_launcher_background)       // Failure image
+                                    .into(profileImage);
                         }
                     }
                 })
                 .addOnFailureListener(e -> {
-                    txtName.setText("Error loading data");
-                    txtEmail.setText("");
+                    if (isAdded()) {
+                        txtName.setText("Error loading data");
+                        txtEmail.setText("");
+                        Toast.makeText(getContext(), "Failed to load profile: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    }
                 });
     }
-
-    // Convert Base64 string to Bitmap
-    private Bitmap base64ToBitmap(String base64Str) {
-        try {
-            byte[] decodedBytes = Base64.decode(base64Str, Base64.DEFAULT);
-            return BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
 }
+
+
+

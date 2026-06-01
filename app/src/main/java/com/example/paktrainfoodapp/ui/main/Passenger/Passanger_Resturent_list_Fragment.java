@@ -1,6 +1,8 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -44,11 +46,7 @@ public class Passanger_Resturent_list_Fragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
 
-        View view = inflater.inflate(
-                R.layout.fragment_passanger__resturent_list_,
-                container,
-                false
-        );
+        View view = inflater.inflate(R.layout.fragment_passanger__resturent_list_, container, false);
 
         rv = view.findViewById(R.id.rv_restaurants);
         tvTopTitle = view.findViewById(R.id.tv_top_title);
@@ -58,14 +56,12 @@ public class Passanger_Resturent_list_Fragment extends Fragment {
 
         list = new ArrayList<>();
         adapter = new RestaurantAdapter(list);
-
         rv.setAdapter(adapter);
 
         db = FirebaseFirestore.getInstance();
 
         // ================= GET ARGUMENTS =================
         if (getArguments() != null) {
-
             selectedCity = getArguments().getString("selectedCity");
             trainName = getArguments().getString("TRAIN_NAME");
             routeId = getArguments().getString("ROUTE_ID");
@@ -73,22 +69,16 @@ public class Passanger_Resturent_list_Fragment extends Fragment {
             toStation = getArguments().getString("TO");
         }
 
-        if (selectedCity == null) {
-            selectedCity = "Unknown";
-        }
+        if (selectedCity == null) selectedCity = "Unknown";
 
-        tvTopTitle.setText("Restaurants in " + selectedCity);
+        // ================= CLEAN CITY NAME =================
+        String fetchCity = cleanCityName(selectedCity);
+        tvTopTitle.setText("Restaurants in " + fetchCity);
 
-        // Debug (future ETA tracking)
-        android.util.Log.d("ROUTE_INFO",
-                "Train=" + trainName +
-                        " Route=" + routeId +
-                        " From=" + fromStation +
-                        " To=" + toStation +
-                        " Meal=" + selectedCity
-        );
+        Log.d("CITY_DEBUG", "Original = " + selectedCity + " | Fetch = " + fetchCity);
 
-        loadRestaurants(selectedCity);
+        // ================= LOAD RESTAURANTS =================
+        loadRestaurants(fetchCity);
 
         // ================= CLICK HANDLING =================
         adapter.setOnItemClickListener(new RestaurantAdapter.OnItemClickListener() {
@@ -97,17 +87,18 @@ public class Passanger_Resturent_list_Fragment extends Fragment {
 
             @Override
             public void onItemClick(int position) {
+                if (position < 0 || position >= list.size()) return;
 
                 RestaurantModel model = list.get(position);
-
                 Station_Menu_Fragment fragment = new Station_Menu_Fragment();
-
                 Bundle bundle = new Bundle();
+
                 bundle.putString("RESTAURANT_UID", model.getUid());
                 bundle.putString("RESTAURANT_NAME", model.getRestaurantName());
-                bundle.putString("RESTAURANT_IMAGE", model.getImageBase64());
+                bundle.putString("RESTAURANT_IMAGE", model.getImageUrl());
+                bundle.putString("RESTAURANT_INFO", "Verified Restaurant"); // Added info field
 
-                // IMPORTANT: route context pass forward
+                // Route Info
                 bundle.putString("MEAL_STATION", selectedCity);
                 bundle.putString("TRAIN_NAME", trainName);
                 bundle.putString("ROUTE_ID", routeId);
@@ -116,21 +107,31 @@ public class Passanger_Resturent_list_Fragment extends Fragment {
 
                 fragment.setArguments(bundle);
 
-                requireActivity()
-                        .getSupportFragmentManager()
-                        .beginTransaction()
-                        .replace(R.id.fragment_holder, fragment)
-                        .addToBackStack(null)
-                        .commit();
+                // Parent Loader validation logic
+                Fragment parentFrag = getParentFragment();
+                if (parentFrag instanceof Passenger_Fragment_Loader) {
+                    Passenger_Fragment_Loader loader =
+                            (Passenger_Fragment_Loader) parentFrag;
+
+                    loader.openRestaurantMenu(fragment);
+
+                    loader.showTempFragment(fragment);
+                }
             }
         });
 
         return view;
     }
 
-    // ================= LOAD RESTAURANTS =================
-    private void loadRestaurants(String city) {
+    private String cleanCityName(String city) {
+        if (city == null) return "";
+        return city.trim()
+                .replace("Jn", "")
+                .replace("Cantt", "")
+                .trim();
+    }
 
+    private void loadRestaurants(String city) {
         progressBar.setVisibility(View.VISIBLE);
 
         db.collection("Users")
@@ -138,12 +139,25 @@ public class Passanger_Resturent_list_Fragment extends Fragment {
                 .collection("VerifiedRegister")
                 .whereEqualTo("city", city)
                 .get()
-                .addOnSuccessListener(querySnapshot -> {
+                .addOnCompleteListener(task -> {
+                    if (!isAdded() || getContext() == null) return;
+
+                    progressBar.setVisibility(View.GONE);
+                    if (!task.isSuccessful() || task.getResult() == null) {
+                        Toast.makeText(getContext(), "Error loading restaurants", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    if (task.getResult().isEmpty()) {
+                        Toast.makeText(getContext(), "No restaurants found in " + city, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
 
                     list.clear();
+                    int totalDocs = task.getResult().size();
+                    final int[] loadedCount = {0};
 
-                    for (DocumentSnapshot doc : querySnapshot) {
-
+                    for (DocumentSnapshot doc : task.getResult()) {
                         String uid = doc.getId();
                         String restaurantName = doc.getString("restaurantName");
                         String cityName = doc.getString("city");
@@ -154,41 +168,26 @@ public class Passanger_Resturent_list_Fragment extends Fragment {
                                 .document(uid)
                                 .get()
                                 .addOnSuccessListener(imageDoc -> {
+                                    loadedCount[0]++;
+                                    if (isAdded() && getContext() != null) {
+                                        String imageUrl = imageDoc.exists() ?
+                                                (TextUtils.isEmpty(imageDoc.getString("profileImageUrl")) ?
+                                                        imageDoc.getString("imageUrl") : imageDoc.getString("profileImageUrl")) : null;
 
-                                    String imageBase64 = null;
-
-                                    if (imageDoc.exists()) {
-                                        imageBase64 = imageDoc.getString("imageBase64");
+                                        list.add(new RestaurantModel(uid, restaurantName, cityName, imageUrl));
+                                        if (loadedCount[0] == totalDocs) adapter.notifyDataSetChanged();
                                     }
-
-                                    list.add(new RestaurantModel(
-                                            uid,
-                                            restaurantName,
-                                            cityName,
-                                            imageBase64
-                                    ));
-
-                                    adapter.notifyDataSetChanged();
-                                    progressBar.setVisibility(View.GONE);
                                 })
-                                .addOnFailureListener(e -> progressBar.setVisibility(View.GONE));
+                                .addOnFailureListener(e -> {
+                                    loadedCount[0]++;
+                                    if (loadedCount[0] == totalDocs) adapter.notifyDataSetChanged();
+                                });
                     }
-
-                    if (querySnapshot.isEmpty()) {
-                        progressBar.setVisibility(View.GONE);
-                        Toast.makeText(getContext(),
-                                "No restaurants found in " + city,
-                                Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    progressBar.setVisibility(View.GONE);
-                    Toast.makeText(getContext(),
-                            e.getMessage(),
-                            Toast.LENGTH_LONG).show();
                 });
     }
 }
+
+
 
 
 

@@ -12,49 +12,34 @@ public class MenuItem {
     private String name;
     private String description;
     private String time;
-    private double price;
+    private String status;
+
+    // ✅ CHANGED: Replaced 'double price' with Map for Variations (e.g., {"Half": 250, "Full": 450})
+    private Map<String, Double> variations;
 
     private String passengerUid;
-    private String orderStatus; // 🔹 Added field
-
-
-
-    // inside MenuItem.java (add these fields + methods)
+    private String orderStatus;
     private Map<String, Object> meta;
     private String docPath;
 
-    public Map<String, Object> getMeta() { return meta; }
-    public void setMeta(Map<String, Object> meta) { this.meta = meta; }
-
-    public String getDocPath() { return docPath; }
-    public void setDocPath(String docPath) { this.docPath = docPath; }
-
-
-    // 👇 Default constructor (Firestore ke liye required)
     public MenuItem() {}
 
-    // For new menu items (without status)
-    public MenuItem(String name, String desc, String imageUrl, double price, String time,
+    // Constructor updated to accept Map instead of double price
+    public MenuItem(String name, String desc, String imageUrl, Map<String, Double> variations, String time,
                     String category, String restId, String restaurantName, String restaurantCity) {
-        this(name, desc, imageUrl, price, time, category, restId, restaurantName, restaurantCity, "Pending");
-    }
-
-    // 👇 Proper constructor with assignments
-    public MenuItem(String name, String desc, String imageUrl, double price, String time,
-                    String category, String restId, String restaurantName, String restaurantCity, String orderStatus) {
         this.name = name;
         this.description = desc;
         this.imageUrl = imageUrl;
-        this.price = price;
+        this.variations = variations;
         this.time = time;
         this.category = category;
         this.restaurantId = restId;
         this.restaurantName = restaurantName;
         this.restaurantCity = restaurantCity;
-        this.orderStatus = orderStatus;
+        this.orderStatus = "Available";
     }
 
-    // 👇 Getters and Setters
+    // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
@@ -82,19 +67,37 @@ public class MenuItem {
     public String getTime() { return time; }
     public void setTime(String time) { this.time = time; }
 
-    public double getPrice() { return price; }
-    public void setPrice(double price) { this.price = price; }
+    // ✅ NEW: Getter/Setter for Variations
+    public Map<String, Double> getVariations() { return variations; }
+    public void setVariations(Map<String, Double> variations) { this.variations = variations; }
 
     public String getOrderStatus() { return orderStatus; }
     public void setOrderStatus(String orderStatus) { this.orderStatus = orderStatus; }
 
-    public String getPassengerUid() {
-        return passengerUid;
+    public String getPassengerUid() { return passengerUid; }
+    public void setPassengerUid(String passengerUid) { this.passengerUid = passengerUid; }
+
+    public Map<String, Object> getMeta() { return meta; }
+    public void setMeta(Map<String, Object> meta) { this.meta = meta; }
+
+    public String getDocPath() { return docPath; }
+    public void setDocPath(String docPath) { this.docPath = docPath; }
+
+    public String getStatus() {
+        return status;
     }
 
-    public void setPassengerUid(String passengerUid) {
-        this.passengerUid = passengerUid;
+    public void setStatus(String status) {
+        this.status = status;
     }
+
 }
+
+
+
+
+
+
+
 
 

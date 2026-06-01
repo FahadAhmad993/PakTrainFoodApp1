@@ -12,7 +12,7 @@
         android:layout_height="90dp"
         android:orientation="horizontal"
         android:padding="12dp"
-        android:background="@color/purple_700"
+        android:background="@color/purple_light"
         android:gravity="center_vertical">
 
         <!-- Left side: Cycle Icon -->

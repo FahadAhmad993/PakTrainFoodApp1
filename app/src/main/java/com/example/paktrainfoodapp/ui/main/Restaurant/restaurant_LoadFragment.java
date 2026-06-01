@@ -116,4 +116,18 @@ public class restaurant_LoadFragment extends Fragment {
             text.setTypeface(null, android.graphics.Typeface.NORMAL);
         }
     }
+    // Eh method restaurant_LoadFragment class de vich rakho
+    public void navigateFromDashboard(String target) {
+        switch (target) {
+            case "menu":
+                btnMenu.performClick(); // btnMenu da click trigger karo
+                break;
+            case "delivery":
+                btnDelivery.performClick();
+                break;
+            case "profile":
+                btnProfile.performClick();
+                break;
+        }
+    }
 }

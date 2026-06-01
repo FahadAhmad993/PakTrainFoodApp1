@@ -1,186 +1,281 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
 import android.Manifest;
-import android.app.*;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.Service;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
 import android.location.Location;
-import android.os.*;
+import android.os.Build;
+import android.os.IBinder;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 
-import com.google.android.gms.location.*;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.firebase.database.FirebaseDatabase;
 
 public class LocationService extends Service {
 
+    private static final String TAG = "LocationService";
+
+    private static final String CHANNEL_ID = "LocationTrackingChannel";
+
     private FusedLocationProviderClient fusedLocationClient;
     private LocationCallback locationCallback;
 
-    private String orderId;
-    private String passengerUid;
-    private String station;
+    private String orderId = "";
+    private String passengerUid = "";
+    private String station = "";
 
-    private Location lastSavedLocation = null;
-    private long lastHistoryTime = 0;
-
-    private static final String CHANNEL_ID = "LocationChannel";
+    // ✅ YOUR REALTIME DATABASE URL
+    private static final String DB_URL =
+            "https://paktrainfoodservice-default-rtdb.firebaseio.com/";
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         createNotificationChannel();
 
-        Log.d("SERVICE_DEBUG", "Service Created");
+        fusedLocationClient =
+                LocationServices.getFusedLocationProviderClient(this);
+
+        Log.d(TAG, "Service Created");
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
         if (intent != null) {
+
             orderId = intent.getStringExtra("orderId");
             passengerUid = intent.getStringExtra("passengerUid");
             station = intent.getStringExtra("station");
+
         }
 
-        Log.d("SERVICE_DEBUG", "OrderId: " + orderId);
-        Log.d("SERVICE_DEBUG", "PassengerUid: " + passengerUid);
+        Log.d(TAG, "Order ID : " + orderId);
+        Log.d(TAG, "Passenger UID : " + passengerUid);
+        Log.d(TAG, "Station : " + station);
 
-        startForegroundService();
+        if (orderId == null || orderId.isEmpty()) {
+
+            Log.e(TAG, "Order ID NULL");
+
+            stopSelf();
+
+            return START_NOT_STICKY;
+        }
+
+        startMyForegroundService();
+
         startLocationUpdates();
 
         return START_STICKY;
     }
 
-    private void startForegroundService() {
+    // =========================================================
+    // FOREGROUND SERVICE
+    // =========================================================
 
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Live Tracking Active")
-                .setContentText("Location is being tracked")
-                .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
-                .build();
+    private void startMyForegroundService() {
 
-        startForeground(1, notification);
+        Notification notification =
+                new NotificationCompat.Builder(this, CHANNEL_ID)
+                        .setContentTitle("Train Food Tracking")
+                        .setContentText("Passenger location sharing active")
+                        .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+                        .setOngoing(true)
+                        .build();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+
+            startForeground(
+                    1,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            );
+
+        } else {
+
+            startForeground(1, notification);
+        }
+
+        Log.d(TAG, "Foreground Service Started");
     }
+
+    // =========================================================
+    // LOCATION UPDATES
+    // =========================================================
 
     private void startLocationUpdates() {
 
-        LocationRequest request = new LocationRequest.Builder(
-                Priority.PRIORITY_HIGH_ACCURACY,
-                10000
-        ).setMinUpdateIntervalMillis(5000)
-                .build();
+        // ✅ PERMISSION CHECK
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED) {
+
+            Log.e(TAG, "Location Permission NOT Granted");
+
+            stopSelf();
+
+            return;
+        }
+
+        LocationRequest locationRequest =
+                new LocationRequest.Builder(
+                        Priority.PRIORITY_HIGH_ACCURACY,
+                        600000 // 5 sec
+                )
+                        .setMinUpdateDistanceMeters(5)
+                        .build();
 
         locationCallback = new LocationCallback() {
+
             @Override
             public void onLocationResult(LocationResult result) {
 
-                if (result == null || result.getLastLocation() == null) return;
+                super.onLocationResult(result);
+
+                if (result == null) {
+
+                    Log.e(TAG, "Location Result NULL");
+
+                    return;
+                }
 
                 Location location = result.getLastLocation();
+
+                if (location == null) {
+
+                    Log.e(TAG, "Location NULL");
+
+                    return;
+                }
 
                 double lat = location.getLatitude();
                 double lng = location.getLongitude();
 
-                Log.d("LOCATION_DEBUG", "Callback fired");
-                Log.d("LOCATION_DEBUG", "Lat: " + lat + " Lng: " + lng);
+                Log.d(TAG, "Latitude : " + lat);
+                Log.d(TAG, "Longitude : " + lng);
 
-                PassengerLocationModel model = new PassengerLocationModel(
-                        orderId,
-                        passengerUid,
-                        station,
-                        lat,
-                        lng,
-                        System.currentTimeMillis()
-                );
+                PassengerLocationModel model =
+                        new PassengerLocationModel(
+                                orderId,
+                                passengerUid,
+                                station,
+                                lat,
+                                lng,
+                                System.currentTimeMillis()
+                        );
 
-                // 🔵 ALWAYS UPDATE LATEST
-                FirebaseDatabase.getInstance()
+                // =================================================
+                // SAVE TO FIREBASE REALTIME DATABASE
+                // =================================================
+
+                FirebaseDatabase
+                        .getInstance(DB_URL)
                         .getReference("OrderLocations")
                         .child(orderId)
                         .child("latest")
-                        .setValue(model);
+                        .setValue(model)
 
-                // 🟢 HISTORY (SMART SAVE)
-                long currentTime = System.currentTimeMillis();
+                        .addOnSuccessListener(unused -> {
 
-                boolean movedEnough = false;
-                if (lastSavedLocation != null) {
-                    float distance = location.distanceTo(lastSavedLocation);
-                    if (distance > 30) movedEnough = true;
-                } else {
-                    movedEnough = true;
-                }
+                            Log.d(TAG,
+                                    "Location Saved Successfully");
 
-                boolean timePassed = (currentTime - lastHistoryTime) > 60000; // 60 sec
+                        })
 
-                if (movedEnough && timePassed) {
+                        .addOnFailureListener(e -> {
 
-                    FirebaseDatabase.getInstance()
-                            .getReference("OrderLocations")
-                            .child(orderId)
-                            .child("history")
-                            .push()
-                            .setValue(model);
+                            Log.e(TAG,
+                                    "Firebase Error : "
+                                            + e.getMessage());
 
-                    lastHistoryTime = currentTime;
-                    lastSavedLocation = location;
-
-                    Log.d("FIREBASE_DEBUG", "History saved");
-                }
+                        });
             }
         };
 
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.e("LOCATION_ERROR", "Permission not granted");
-            return;
-        }
+        try {
 
-        fusedLocationClient.requestLocationUpdates(
-                request,
-                locationCallback,
-                Looper.getMainLooper()
-        );
+            fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    locationCallback,
+                    Looper.getMainLooper()
+            );
+
+            Log.d(TAG, "Location Updates Started");
+
+        } catch (SecurityException e) {
+
+            Log.e(TAG,
+                    "Security Exception : "
+                            + e.getMessage());
+        }
     }
+
+    // =========================================================
+    // NOTIFICATION CHANNEL
+    // =========================================================
 
     private void createNotificationChannel() {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Location Service",
-                    NotificationManager.IMPORTANCE_LOW
-            );
+            NotificationChannel channel =
+                    new NotificationChannel(
+                            CHANNEL_ID,
+                            "Location Tracking",
+                            NotificationManager.IMPORTANCE_LOW
+                    );
 
-            NotificationManager manager = getSystemService(NotificationManager.class);
+            NotificationManager manager =
+                    getSystemService(NotificationManager.class);
+
             if (manager != null) {
+
                 manager.createNotificationChannel(channel);
             }
         }
     }
 
+    // =========================================================
+    // DESTROY
+    // =========================================================
+
     @Override
     public void onDestroy() {
+
         super.onDestroy();
 
-        if (fusedLocationClient != null && locationCallback != null) {
+        if (fusedLocationClient != null
+                && locationCallback != null) {
+
             fusedLocationClient.removeLocationUpdates(locationCallback);
         }
 
-        Log.d("SERVICE_DEBUG", "Service Stopped");
+        Log.d(TAG, "Service Destroyed");
     }
 
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
+
         return null;
     }
 }

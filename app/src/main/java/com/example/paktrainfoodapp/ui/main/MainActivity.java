@@ -3,6 +3,7 @@ package com.example.paktrainfoodapp.ui.main;
 import android.os.Bundle;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
@@ -34,6 +35,54 @@ public class MainActivity extends AppCompatActivity {
         auth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
+        // 🔹 100% FIXED BACK PRESS HANDLING FOR INNER FRAGMENTS
+        // 🔹 100% PERFECT UNIVERSAL BACK PRESS HANDLING
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                // Main Container se Passenger Loader nikalein
+                Fragment currentLoader = getSupportFragmentManager().findFragmentById(R.id.main_container);
+
+                if (currentLoader instanceof Passenger_Fragment_Loader) {
+                    Passenger_Fragment_Loader loader = (Passenger_Fragment_Loader) currentLoader;
+
+                    // 1. Pehle check karo kya Restaurant List ya Menu ka internal backstack maujood hai?
+                    boolean handledInternally = loader.getChildFragmentManager().popBackStackImmediate();
+                    Fragment current =
+                            loader.getChildFragmentManager()
+                                    .findFragmentById(R.id.fragment_holder);
+
+                    if (current != null) {
+                        loader.showTempFragment(current);
+                        loader.updateBottomNav(current);
+                    }
+
+                    if (handledInternally) {
+                        // Agar peeche koi fragment tha (jaise menu se list ya list se home), to wo chala gaya.
+                        return;
+                    }
+
+                    // 2. Agar koi internal backstack nahi hai, to check karo user kis tab par khara hai?
+                    // Agar user Profile, Order, Cart ya Menu Browse par hai, to back dabane par usay wapas Dashboard/Home tab par aana chahiye!
+                    if (loader.getActiveFragment() != null && loader.getActiveFragment() != loader.getHomeFragment()) {
+                        // Wapas Dashboard wale button ko trigger karo taaki user Home par aa jaye
+                        // 🌟 FIX: loader.getView() lagane se fragment ka layout view mil jata hai
+                        if (loader.getView() != null) {
+                            loader.getView().findViewById(R.id.btn_dashboard).performClick();
+                        }
+                    } else {
+                        // 3. Agar user pehle se hi bilkul main Home/Dashboard fragment par hai, ab app close hona chahiye.
+                        setEnabled(false); // Callback temporary off
+                        MainActivity.this.getOnBackPressedDispatcher().onBackPressed(); // Default close behavior
+                    }
+                } else {
+                    // Delivery ya Restaurant role ke liye default exit
+                    setEnabled(false);
+                    MainActivity.this.getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
+
         String userRole = getIntent().getStringExtra(USER_ROLE_KEY);
         if (userRole == null || userRole.isEmpty()) {
             userRole = prefManager.getUserRole();
@@ -47,7 +96,6 @@ public class MainActivity extends AppCompatActivity {
 
         String uid = auth.getCurrentUser().getUid();
 
-        // Roles handle karna
         switch (userRole) {
             case "RESTAURANT":
                 handleRestaurantRole(uid);
@@ -67,19 +115,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // 🔹 Restaurant verification logic
     private void handleRestaurantRole(String uid) {
-        // Agar locally already verified → dashboard
         if (prefManager.isRegistered() && prefManager.isRestaurantVerified()) {
             loadFragment(new restaurant_LoadFragment());
             return;
         }
 
-        // Firestore se verify karo (correct path)
-        db.collection("Users")                  // Users collection
-                .document("Restaurant")        // Restaurant document
-                .collection("VerifiedRegister") // VerifiedRegister subcollection
-                .document(uid)                 // Restaurant UID
+        db.collection("Users")
+                .document("Restaurant")
+                .collection("VerifiedRegister")
+                .document(uid)
                 .get()
                 .addOnSuccessListener(this::handleRestaurantDocument)
                 .addOnFailureListener(e -> {
@@ -88,7 +133,6 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    // 🔹 Firestore se document handle
     private void handleRestaurantDocument(DocumentSnapshot doc) {
         if (doc == null || !doc.exists()) {
             prefManager.setRegistered(false, auth.getCurrentUser().getEmail());
@@ -111,23 +155,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
-
-
-
-    // 🔹 Delivery Boy verification logic
     private void handleDeliveryRole(String uid) {
-        // Agar locally already verified → dashboard
         if (prefManager.isRegistered() && prefManager.isDeliveryVerified()) {
             loadFragment(new DeliveryDashboardFragment());
             return;
         }
 
-        // Firestore se verify karo (correct path)
-        db.collection("Users")                  // Users collection
-                .document("Delivery")        // Deliveryboy document
-                .collection("VerifiedRegister") // VerifiedRegister subcollection
-                .document(uid)                 // Deliver UID
+        db.collection("Users")
+                .document("Delivery")
+                .collection("VerifiedRegister")
+                .document(uid)
                 .get()
                 .addOnSuccessListener(this::handleDeliveryDocument)
                 .addOnFailureListener(e -> {
@@ -136,7 +173,6 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    // 🔹 Firestore se document handle
     private void handleDeliveryDocument(DocumentSnapshot doc) {
         if (doc == null || !doc.exists()) {
             prefManager.setRegistered(false, auth.getCurrentUser().getEmail());
@@ -159,10 +195,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
-
-
-    // 🔹 Fragment load karna
     private void loadFragment(Fragment fragment) {
         if (isFinishing()) return;
         getSupportFragmentManager()
@@ -171,4 +203,15 @@ public class MainActivity extends AppCompatActivity {
                 .commitAllowingStateLoss();
     }
 }
+
+
+
+
+
+
+
+
+
+
+
 

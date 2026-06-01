@@ -21,7 +21,6 @@ public class CompletedOrdersFragment extends Fragment {
     private ArrayList<MenuItem> orderList;
     private OrdersAdapter adapter;
     private FirebaseFirestore firestore;
-    private FirebaseAuth auth;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
@@ -37,7 +36,6 @@ public class CompletedOrdersFragment extends Fragment {
         recyclerView.setAdapter(adapter);
 
         firestore = FirebaseFirestore.getInstance();
-        auth = FirebaseAuth.getInstance();
 
         loadOrders("Completed");
         return view;
@@ -50,14 +48,23 @@ public class CompletedOrdersFragment extends Fragment {
                 .whereEqualTo("orderStatus", status)
                 .get()
                 .addOnSuccessListener(query -> {
+                    if (!isAdded()) return;
                     orderList.clear();
                     for (QueryDocumentSnapshot doc : query) {
                         MenuItem item = new MenuItem();
                         item.setId(doc.getId());
                         item.setName(doc.getString("itemName"));
-                        item.setPrice(doc.getDouble("itemPrice"));
                         item.setDescription(doc.getString("itemDesc"));
                         item.setImageUrl(doc.getString("itemImage"));
+
+                        // ✅ FIX: Handling price by putting it into the variations map
+                        Double price = doc.getDouble("itemPrice");
+                        if (price != null) {
+                            Map<String, Double> varMap = new HashMap<>();
+                            varMap.put("Default", price);
+                            item.setVariations(varMap);
+                        }
+
                         orderList.add(item);
                     }
                     adapter.notifyDataSetChanged();
@@ -89,20 +96,33 @@ public class CompletedOrdersFragment extends Fragment {
         public void onBindViewHolder(@NonNull ViewHolder h, int pos) {
             MenuItem m = items.get(pos);
             h.name.setText(m.getName());
-            h.price.setText("Rs. " + m.getPrice());
-            h.desc.setText(m.getDescription());
 
-            if (m.getImageUrl() != null) {
-                byte[] dec = Base64.decode(m.getImageUrl(), Base64.DEFAULT);
-                h.image.setImageBitmap(BitmapFactory.decodeByteArray(dec, 0, dec.length));
+            // ✅ FIX: Price display from variations map
+            if (m.getVariations() != null && !m.getVariations().isEmpty()) {
+                h.price.setText("Rs. " + m.getVariations().values().iterator().next());
+            } else {
+                h.price.setText("Rs. 0");
             }
 
+            h.desc.setText(m.getDescription());
+
+            if (m.getImageUrl() != null && !m.getImageUrl().isEmpty()) {
+                try {
+                    byte[] dec = Base64.decode(m.getImageUrl(), Base64.DEFAULT);
+                    h.image.setImageBitmap(BitmapFactory.decodeByteArray(dec, 0, dec.length));
+                } catch (Exception e) {
+                    h.image.setImageResource(R.drawable.ic_food_placeholder);
+                }
+            }
+
+            // Note: In Completed orders, typically you don't need 'Accept' button,
+            // but keeping logic as per your structure.
             h.btnAccept.setOnClickListener(v -> {
                 FirebaseFirestore.getInstance().collection("Users")
                         .document("Restaurant").collection("Orders")
                         .document(m.getId())
                         .update("orderStatus", "Accepted");
-                Toast.makeText(v.getContext(), "Order Accepted", Toast.LENGTH_SHORT).show();
+                Toast.makeText(v.getContext(), "Order status updated", Toast.LENGTH_SHORT).show();
                 items.remove(pos);
                 notifyItemRemoved(pos);
             });

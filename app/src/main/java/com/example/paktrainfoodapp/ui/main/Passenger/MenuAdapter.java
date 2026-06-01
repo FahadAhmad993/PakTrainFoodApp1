@@ -1,8 +1,5 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +10,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.example.paktrainfoodapp.R;
 
 import java.util.List;
@@ -62,13 +60,30 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder> {
 
         holder.txtName.setText(item.getName());
         holder.txtDesc.setText(item.getDescription());
-        holder.txtPrice.setText("Rs. " + item.getPrice());
         holder.txtRestName.setText("By " + item.getRestaurantName());
 
-        // ✅ Safe Base64 decoding
-        setImageFromBase64(holder.imgFood, item.getImageUrl());
+        // Price display logic from Variations Map
+        if (item.getVariations() != null && !item.getVariations().isEmpty()) {
+            // Map ki pehli entry (size/price) ko display karein
+            double price = item.getVariations().values().iterator().next();
+            holder.txtPrice.setText("Rs. " + (int) price);
+        } else {
+            holder.txtPrice.setText("Rs. 0");
+        }
 
-        // Button visibility
+        // Glide Image Loading
+        String imgUrl = item.getImageUrl();
+        if (imgUrl != null && !imgUrl.isEmpty()) {
+            Glide.with(holder.itemView.getContext())
+                    .load(imgUrl)
+                    .placeholder(R.drawable.ic_food_placeholder)
+                    .error(R.drawable.ic_food_placeholder)
+                    .into(holder.imgFood);
+        } else {
+            holder.imgFood.setImageResource(R.drawable.ic_food_placeholder);
+        }
+
+        // Button Visibility Logic
         if (showDeleteButton) {
             holder.btnDeleteOrder.setVisibility(View.VISIBLE);
             holder.btnAddCart.setVisibility(View.GONE);
@@ -76,16 +91,13 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder> {
         } else {
             holder.btnDeleteOrder.setVisibility(View.GONE);
             holder.btnAddCart.setVisibility(showButtons ? View.VISIBLE : View.GONE);
-            holder.btnBuyNow.setVisibility(showButtons ? View.VISIBLE : View.GONE);
+            // "Buy Now" button ko permanently GONE kar diya
+            holder.btnBuyNow.setVisibility(View.GONE);
         }
 
         // Button Clicks
         holder.btnAddCart.setOnClickListener(v -> {
             if (listener != null) listener.onAddToCart(item);
-        });
-
-        holder.btnBuyNow.setOnClickListener(v -> {
-            if (listener != null) listener.onBuyNow(item);
         });
 
         holder.btnDeleteOrder.setOnClickListener(v -> {
@@ -96,27 +108,6 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder> {
     @Override
     public int getItemCount() {
         return itemList.size();
-    }
-
-    // ✅ Separate method for Base64 decoding to avoid crashes
-    private void setImageFromBase64(ImageView imageView, String base64String) {
-        if (base64String == null || base64String.isEmpty()) {
-            imageView.setImageResource(R.drawable.ic_food_placeholder);
-            return;
-        }
-
-        try {
-            byte[] decodedBytes = Base64.decode(base64String, Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-            if (bitmap != null) {
-                imageView.setImageBitmap(bitmap);
-            } else {
-                imageView.setImageResource(R.drawable.ic_food_placeholder);
-            }
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-            imageView.setImageResource(R.drawable.ic_food_placeholder);
-        }
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
@@ -137,6 +128,7 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.ViewHolder> {
         }
     }
 }
+
 
 
 

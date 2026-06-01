@@ -1,39 +1,51 @@
 package com.example.paktrainfoodapp.ui.main.Restaurant;
 
 import android.app.AlertDialog;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.util.Base64;
-import android.view.*;
-import android.widget.*;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.paktrainfoodapp.R;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.*;
+import com.google.firebase.firestore.CollectionReference;
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ActiveOrdersFragment extends Fragment {
 
     private RecyclerView recyclerView;
     private LinearLayout layoutNoOrders;
+
     private ArrayList<MenuItem> orderList;
     private OrdersAdapter adapter;
+
     private FirebaseFirestore firestore;
     private String restaurantUid;
 
+    private ListenerRegistration orderListener;
+
     @Override
-    public View onCreateView(
-            @NonNull LayoutInflater inflater,
-            ViewGroup container,
-            Bundle savedInstanceState
-    ) {
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             ViewGroup container,
+                             Bundle savedInstanceState) {
 
         View view = inflater.inflate(
                 R.layout.fragment_restaurant_orders_accept_pending_complete,
@@ -45,68 +57,106 @@ public class ActiveOrdersFragment extends Fragment {
         layoutNoOrders = view.findViewById(R.id.layoutNoOrders);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+
         orderList = new ArrayList<>();
+
         adapter = new OrdersAdapter(orderList);
         recyclerView.setAdapter(adapter);
 
         firestore = FirebaseFirestore.getInstance();
+
         restaurantUid = FirebaseAuth.getInstance().getCurrentUser() != null
                 ? FirebaseAuth.getInstance().getCurrentUser().getUid()
                 : "";
 
-        if (!restaurantUid.isEmpty()) {
-            loadOrders();
-        } else {
-            recyclerView.setVisibility(View.GONE);
-            layoutNoOrders.setVisibility(View.VISIBLE);
-            Toast.makeText(getContext(), "Login required", Toast.LENGTH_SHORT).show();
-        }
-
         return view;
     }
 
-    // ================= LOAD ACTIVE ORDERS =================
+    @Override
+    public void onViewCreated(@NonNull View view,
+                              @Nullable Bundle savedInstanceState) {
+
+        super.onViewCreated(view, savedInstanceState);
+
+        if (!restaurantUid.isEmpty()) {
+            loadOrders();
+        }
+    }
 
     private void loadOrders() {
-        firestore.collectionGroup("Orders")
+
+        if (orderListener != null) {
+            orderListener.remove();
+        }
+
+        orderListener = firestore.collection("Orders")
                 .whereEqualTo("restaurantUid", restaurantUid)
                 .whereEqualTo("orderStatus", "Active")
-                .get()
-                .addOnSuccessListener(query -> {
+                .addSnapshotListener((query, e) -> {
+
+                    if (e != null || query == null || !isAdded()) {
+                        return;
+                    }
 
                     orderList.clear();
 
                     for (QueryDocumentSnapshot doc : query) {
 
                         MenuItem item = new MenuItem();
-                        item.setId(doc.getId());                 // ✅ orderId
-                        item.setName(doc.getString("itemName"));
-                        item.setPrice(doc.getDouble("itemPrice") != null
-                                ? doc.getDouble("itemPrice") : 0);
-                        item.setDescription(doc.getString("itemDesc"));
-                        item.setImageUrl(doc.getString("itemImage"));
-                        item.setPassengerUid(doc.getString("passengerUid")); // ✅ passengerUid
+
+                        item.setId(doc.getId());
+
+                        item.setPassengerUid(
+                                doc.getString("passengerUid")
+                        );
+
+                        item.setDocPath(
+                                doc.getReference().getPath()
+                        );
+
+                        // TOTAL PRICE
+                        Double totalPrice = doc.getDouble("totalPrice");
+
+                        if (totalPrice != null) {
+
+                            Map<String, Double> varMap =
+                                    new HashMap<>();
+
+                            varMap.put("Total", totalPrice);
+
+                            item.setVariations(varMap);
+                        }
 
                         orderList.add(item);
                     }
 
                     adapter.notifyDataSetChanged();
 
-                    layoutNoOrders.setVisibility(orderList.isEmpty() ? View.VISIBLE : View.GONE);
-                    recyclerView.setVisibility(orderList.isEmpty() ? View.GONE : View.VISIBLE);
-                })
-                .addOnFailureListener(e -> {
-                    recyclerView.setVisibility(View.GONE);
-                    layoutNoOrders.setVisibility(View.VISIBLE);
-                    Toast.makeText(getContext(),
-                            "Failed: " + e.getMessage(),
-                            Toast.LENGTH_SHORT).show();
+                    boolean empty = orderList.isEmpty();
+
+                    recyclerView.setVisibility(
+                            empty ? View.GONE : View.VISIBLE
+                    );
+
+                    layoutNoOrders.setVisibility(
+                            empty ? View.VISIBLE : View.GONE
+                    );
                 });
     }
 
-    // ================= ADAPTER =================
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
 
-    private class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.ViewHolder> {
+        if (orderListener != null) {
+            orderListener.remove();
+        }
+    }
+
+    // ====================== ADAPTER ======================
+
+    private class OrdersAdapter
+            extends RecyclerView.Adapter<OrdersAdapter.ViewHolder> {
 
         private final ArrayList<MenuItem> items;
 
@@ -116,109 +166,121 @@ public class ActiveOrdersFragment extends Fragment {
 
         @NonNull
         @Override
-        public ViewHolder onCreateViewHolder(
-                @NonNull ViewGroup parent,
-                int viewType
-        ) {
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent,
+                                             int viewType) {
+
             View v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.passanger_item_menu, parent, false);
+                    .inflate(
+                            R.layout.passanger_order_item_simple,
+                            parent,
+                            false
+                    );
+
             return new ViewHolder(v);
         }
 
         @Override
-        public void onBindViewHolder(
-                @NonNull ViewHolder h,
-                int position
-        ) {
+        public void onBindViewHolder(@NonNull ViewHolder h,
+                                     int position) {
 
             MenuItem m = items.get(position);
 
-            h.name.setText(m.getName());
-            h.price.setText("Rs. " + m.getPrice());
-            h.desc.setText(m.getDescription());
+            h.txtOrderId.setText("#" + m.getId());
 
-            // IMAGE
-            if (m.getImageUrl() != null && !m.getImageUrl().isEmpty()) {
-                try {
-                    byte[] data = Base64.decode(m.getImageUrl(), Base64.DEFAULT);
-                    Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
-                    h.image.setImageBitmap(bmp);
-                } catch (Exception e) {
-                    h.image.setImageResource(R.drawable.ic_food_placeholder);
-                }
-            } else {
-                h.image.setImageResource(R.drawable.ic_food_placeholder);
+            double total = 0;
+
+            if (m.getVariations() != null
+                    && !m.getVariations().isEmpty()) {
+
+                total = m.getVariations()
+                        .values()
+                        .iterator()
+                        .next();
             }
 
-            // BUTTON VISIBILITY
-            h.btnAddToCart.setVisibility(View.GONE);
-            h.btnDelete.setVisibility(View.GONE);
-            h.btnBuyNow.setVisibility(View.GONE);
+            h.txtTotalPrice.setText("Total: Rs " + total);
 
+            // SHOW ACCEPT BUTTON
             h.btnAccept.setVisibility(View.VISIBLE);
-            h.btnCancel.setVisibility(View.VISIBLE);
+            h.btnDelete.setVisibility(View.VISIBLE);
+            // ACCEPT ORDER
+            h.btnAccept.setOnClickListener(v -> {
+                new AlertDialog.Builder(v.getContext())
+                        .setTitle("Accept Order")
+                        .setMessage("Accept this order?")
+                        .setPositiveButton("Yes",
+                                (d, w) ->
+                                        updateOrderStatus(m, "Accepted"))
+                        .setNegativeButton("No", null)
+                        .show();
+            } );
 
-            // ACCEPT
-            h.btnAccept.setOnClickListener(v ->
-                    updateOrderStatus(m, "Accepted", h));
+            // CANCEL ORDER
+            h.btnDelete.setOnClickListener(v -> {
 
-            // CANCEL
-            h.btnCancel.setOnClickListener(v ->
-                    new AlertDialog.Builder(v.getContext())
-                            .setTitle("Cancel Order")
-                            .setMessage("Are you sure?")
-                            .setPositiveButton("Yes",
-                                    (d, w) -> updateOrderStatus(m, "Cancelled", h))
-                            .setNegativeButton("No", null)
-                            .show()
-            );
+                new AlertDialog.Builder(v.getContext())
+                        .setTitle("Cancel Order")
+                        .setMessage("Cancel this order?")
+                        .setPositiveButton("Yes",
+                                (d, w) ->
+                                        updateOrderStatus(m, "Cancelled"))
+                                       .setNegativeButton("No", null)
+                             .show();
+            });
 
-            // ================= OPEN DETAIL FRAGMENT (CORRECT WAY) =================
+            // OPEN DETAIL
             h.itemView.setOnClickListener(v -> {
 
-                Fragment detailFragment = OrderDetailFragment.newInstance(
-                        m.getId(),           // ✅ orderId
-                        m.getPassengerUid()  // ✅ passengerUid
-                );
+                Fragment detailFragment =
+                        OrderDetailFragment.newInstance(
+                                m.getId()
+                        );
 
                 requireActivity()
                         .getSupportFragmentManager()
                         .beginTransaction()
-                        .replace(R.id.main_container, detailFragment)
+                        .replace(
+                                R.id.main_container,
+                                detailFragment
+                        )
                         .addToBackStack("order_detail")
                         .commit();
             });
         }
 
-        private void updateOrderStatus(
-                MenuItem m,
-                String status,
-                ViewHolder h
-        ) {
+        private void updateOrderStatus(MenuItem m,
+                                       String status) {
 
-            firestore.collection("Users")
-                    .document("Passenger")
-                    .collection("OrderNow")
-                    .document(m.getPassengerUid())
-                    .collection("Orders")
-                    .document(m.getId())
-                    .update("orderStatus", status)
+            DocumentReference globalRef =
+                    firestore.document(m.getDocPath());
+
+            DocumentReference passRef =
+                    firestore.collection("Users")
+                            .document("Passenger")
+                            .collection("OrderNow")
+                            .document(m.getPassengerUid())
+                            .collection("Orders")
+                            .document(m.getId());
+
+            WriteBatch batch = firestore.batch();
+
+            batch.update(globalRef,
+                    "orderStatus",
+                    status);
+
+            batch.update(passRef,
+                    "orderStatus",
+                    status);
+
+            batch.commit()
                     .addOnSuccessListener(a -> {
 
-                        Toast.makeText(getContext(),
+                        Toast.makeText(
+                                getContext(),
                                 "Order " + status,
-                                Toast.LENGTH_SHORT).show();
-
-                        int pos = h.getAdapterPosition();
-                        if (pos != RecyclerView.NO_POSITION) {
-                            items.remove(pos);
-                            notifyItemRemoved(pos);
-                        }
-                    })
-                    .addOnFailureListener(e ->
-                            Toast.makeText(getContext(),
-                                    "Update failed",
-                                    Toast.LENGTH_SHORT).show());
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    });
         }
 
         @Override
@@ -226,31 +288,35 @@ public class ActiveOrdersFragment extends Fragment {
             return items.size();
         }
 
-        // ================= VIEW HOLDER =================
+        // ====================== VIEW HOLDER ======================
 
         class ViewHolder extends RecyclerView.ViewHolder {
 
-            TextView name, price, desc;
-            ImageView image;
-            Button btnAddToCart, btnDelete, btnBuyNow, btnAccept, btnCancel;
+            TextView txtOrderId, txtTotalPrice;
 
-            ViewHolder(@NonNull View v) {
-                super(v);
+            ImageView btnDelete, btnAccept;
 
-                name = v.findViewById(R.id.txtName);
-                price = v.findViewById(R.id.txtPrice);
-                desc = v.findViewById(R.id.txtDesc);
-                image = v.findViewById(R.id.imgFood);
+            ViewHolder(@NonNull View itemView) {
+                super(itemView);
 
-                btnAddToCart = v.findViewById(R.id.btnAddCart);
-                btnDelete = v.findViewById(R.id.btnDeleteOrder);
-                btnBuyNow = v.findViewById(R.id.btnBuyNow);
-                btnAccept = v.findViewById(R.id.btnAcceptOrder);
-                btnCancel = v.findViewById(R.id.btnCancelOrder);
+                txtOrderId =
+                        itemView.findViewById(R.id.txtOrderId);
+
+                txtTotalPrice =
+                        itemView.findViewById(R.id.txtTotalPrice);
+
+                btnDelete =
+                        itemView.findViewById(R.id.btnDelete);
+
+                btnAccept =
+                        itemView.findViewById(R.id.btnAccept);
             }
         }
     }
 }
+
+
+
 
 
 

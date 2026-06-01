@@ -26,7 +26,7 @@ public class MenuBrowseFragment extends Fragment {
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
     private FirebaseFirestore db;
-    private List<MenuitemModel> itemList = new ArrayList<>();
+    private final List<MenuitemModel> itemList = new ArrayList<>();
     private MenuAdapter adapter;
 
     public MenuBrowseFragment() {}
@@ -64,13 +64,17 @@ public class MenuBrowseFragment extends Fragment {
                 .collection("VerifiedRegister")
                 .get()
                 .addOnSuccessListener(restaurants -> {
+                    // 1️⃣ Crash Guard: Check if fragment is still attached to activity
+                    if (!isAdded() || getContext() == null) return;
+
                     if (restaurants.isEmpty()) {
                         progressBar.setVisibility(View.GONE);
-                        Toast.makeText(requireContext(), "No restaurants found", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "No restaurants found", Toast.LENGTH_SHORT).show();
                         return;
                     }
 
-                    AtomicInteger remainingRestaurants = new AtomicInteger(restaurants.size());
+                    final int totalRestaurants = restaurants.size();
+                    final AtomicInteger remainingRestaurants = new AtomicInteger(totalRestaurants);
 
                     for (QueryDocumentSnapshot restDoc : restaurants) {
                         String restaurantId = restDoc.getId();
@@ -84,6 +88,9 @@ public class MenuBrowseFragment extends Fragment {
                                 .collection("MenuItems")
                                 .get()
                                 .addOnSuccessListener(menuItems -> {
+                                    // 2️⃣ Crash Guard for Async Callbacks
+                                    if (!isAdded() || getContext() == null) return;
+
                                     for (QueryDocumentSnapshot menuDoc : menuItems) {
                                         MenuitemModel item = menuDoc.toObject(MenuitemModel.class);
                                         item.setId(menuDoc.getId());
@@ -93,33 +100,38 @@ public class MenuBrowseFragment extends Fragment {
                                         itemList.add(item);
                                     }
 
-                                    if (remainingRestaurants.decrementAndGet() == 0) {
-                                        adapter.notifyDataSetChanged();
-                                        progressBar.setVisibility(View.GONE);
-
-                                        if (itemList.isEmpty()) {
-                                            Toast.makeText(requireContext(), "No menu items available", Toast.LENGTH_SHORT).show();
-                                        }
-                                    }
+                                    checkLoadingComplete(remainingRestaurants);
                                 })
                                 .addOnFailureListener(e -> {
-                                    if (remainingRestaurants.decrementAndGet() == 0) {
-                                        adapter.notifyDataSetChanged();
-                                        progressBar.setVisibility(View.GONE);
-
-                                        if (itemList.isEmpty()) {
-                                            Toast.makeText(requireContext(), "No menu items available", Toast.LENGTH_SHORT).show();
-                                        }
-                                    }
+                                    if (!isAdded() || getContext() == null) return;
+                                    checkLoadingComplete(remainingRestaurants);
                                 });
                     }
                 })
                 .addOnFailureListener(e -> {
+                    // 3️⃣ Crash Guard for Root Failure
+                    if (!isAdded() || getContext() == null) return;
                     progressBar.setVisibility(View.GONE);
-                    Toast.makeText(requireContext(), "Failed to load restaurants: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    Toast.makeText(getContext(), "Failed to load: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
     }
+
+    /**
+     * Helper method to monitor counter atomic ticks and safely push notifications/UI updates
+     */
+    private void checkLoadingComplete(AtomicInteger remaining) {
+        if (remaining.decrementAndGet() == 0) {
+            // UI Thread synchronization protection
+            adapter.notifyDataSetChanged();
+            progressBar.setVisibility(View.GONE);
+
+            if (itemList.isEmpty()) {
+                Toast.makeText(getContext(), "No menu items available", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
 }
+
 
 
 
