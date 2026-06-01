@@ -17,7 +17,6 @@
         app:titleTextColor="@color/black"
         app:titleTextAppearance="@style/Toolbar.Title" />
 
-
     <!-- Tabs -->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabs_delivery_Orders"
@@ -37,7 +36,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:padding="12dp" />
+        android:padding="11dp" />
 
 </LinearLayout>
 
