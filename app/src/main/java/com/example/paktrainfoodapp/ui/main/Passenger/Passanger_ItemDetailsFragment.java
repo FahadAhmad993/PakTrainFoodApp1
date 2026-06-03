@@ -216,4 +216,4 @@ public class Passanger_ItemDetailsFragment extends Fragment {
 
         tvPrice.setText("Rs. " + (int) finalPrice);
     }
-}
+}//

@@ -216,4 +216,4 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
 
         }, 2000);
     }
-}
+}//

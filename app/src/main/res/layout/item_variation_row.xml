@@ -13,7 +13,7 @@
         android:layout_weight="1"
         android:hint="Size (e.g. Half)"
         android:inputType="text" />
-
+<!--   -->
     <EditText
         android:id="@+id/et_var_price"
         android:layout_width="0dp"

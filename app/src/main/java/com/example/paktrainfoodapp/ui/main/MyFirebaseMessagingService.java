@@ -24,3 +24,4 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         Log.d("FCM", "Send this token to backend: " + token);
     }
 }
+//

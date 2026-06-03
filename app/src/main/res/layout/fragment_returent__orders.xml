@@ -22,7 +22,7 @@
         android:layout_height="200dp"
         android:scaleType="centerCrop"
         android:src="@drawable/logo5" />
-
+<!---->
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabsOrders"
         android:layout_width="match_parent"

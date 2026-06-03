@@ -11,7 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import com.example.paktrainfoodapp.R;
-
+//
 public class restaurant_LoadFragment extends Fragment {
 
     private LinearLayout btnMenu, btnOrder, btnDashboard, btnDelivery, btnProfile;
