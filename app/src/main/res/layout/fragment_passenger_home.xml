@@ -11,6 +11,24 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
+        <!-- Top Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:background="@color/teal_700"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Select Your Journey"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <!-- Top Banner With Text Overlay -->
         <FrameLayout
             android:layout_width="match_parent"
@@ -22,7 +40,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                android:src="@drawable/station3"
+                android:src="@drawable/home1"
                 android:background="@drawable/top_rounded_image"
                 android:clipToOutline="true" />
 
@@ -52,7 +70,6 @@
             </LinearLayout>
 
         </FrameLayout>
-
 
         <!-- White Card -->
         <LinearLayout
@@ -154,7 +171,7 @@
                 android:layout_height="wrap_content"
                 android:text="Find Restaurants"
                 android:textAllCaps="false"
-                android:backgroundTint="#4A4A55"
+                android:backgroundTint="@color/teal_700"
                 android:textColor="#FFFFFF"
                 android:layout_marginTop="18dp"
                 android:padding="12dp"/>
@@ -166,105 +183,4 @@
 
 
 
-
-
-    <!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"-->
-<!--    android:layout_width="match_parent"-->
-<!--    android:layout_height="match_parent"-->
-<!--    android:padding="16dp">-->
-
-<!--    <LinearLayout-->
-<!--        android:orientation="vertical"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="wrap_content">-->
-
-<!--        &lt;!&ndash; Top image (30% height approx) &ndash;&gt;-->
-<!--        <ImageView-->
-<!--            android:id="@+id/image_station_top"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="200dp"-->
-<!--            android:scaleType="centerCrop"-->
-<!--            android:src="@drawable/station" />-->
-
-<!--        &lt;!&ndash; From Station &ndash;&gt;-->
-<!--        <com.google.android.material.textfield.TextInputLayout-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:hint="From Station"-->
-<!--            android:layout_marginTop="12dp">-->
-
-<!--            <AutoCompleteTextView-->
-<!--                android:id="@+id/actv_from"-->
-<!--                android:layout_width="match_parent"-->
-<!--                android:layout_height="wrap_content"/>-->
-<!--        </com.google.android.material.textfield.TextInputLayout>-->
-
-
-<!--        &lt;!&ndash; Swap Button &ndash;&gt;-->
-<!--        <ImageButton-->
-<!--            android:id="@+id/btn_swap"-->
-<!--            android:layout_width="48dp"-->
-<!--            android:layout_height="48dp"-->
-<!--            android:layout_gravity="center_horizontal"-->
-<!--            android:src="@drawable/ic_swap"-->
-<!--            android:contentDescription="Swap" />-->
-
-<!--        &lt;!&ndash; To Station &ndash;&gt;-->
-<!--        <com.google.android.material.textfield.TextInputLayout-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:hint="To Station"-->
-<!--            android:layout_marginTop="8dp">-->
-
-<!--            <AutoCompleteTextView-->
-<!--                android:id="@+id/actv_to"-->
-<!--                android:layout_width="match_parent"-->
-<!--                android:layout_height="wrap_content"/>-->
-<!--        </com.google.android.material.textfield.TextInputLayout>-->
-
-
-<!--        &lt;!&ndash; Train Select &ndash;&gt;-->
-<!--        <com.google.android.material.textfield.TextInputLayout-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:hint="Select Train"-->
-<!--            android:layout_marginTop="8dp">-->
-
-<!--            <AutoCompleteTextView-->
-<!--                android:id="@+id/actv_train"-->
-<!--                android:layout_width="match_parent"-->
-<!--                android:layout_height="wrap_content"/>-->
-<!--        </com.google.android.material.textfield.TextInputLayout>-->
-
-<!--        &lt;!&ndash; Meal Station &ndash;&gt;-->
-<!--        <com.google.android.material.textfield.TextInputLayout-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:hint="Meal Station"-->
-<!--            android:layout_marginTop="8dp">-->
-
-<!--            <AutoCompleteTextView-->
-<!--                android:id="@+id/actv_meal_station"-->
-<!--                android:layout_width="match_parent"-->
-<!--                android:layout_height="wrap_content"/>-->
-<!--        </com.google.android.material.textfield.TextInputLayout>-->
-
-<!--        &lt;!&ndash; Route Preview &ndash;&gt;-->
-<!--        <TextView-->
-<!--            android:id="@+id/tv_route_preview"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="Route preview will show here"-->
-<!--            android:layout_marginTop="12dp"/>-->
-
-<!--        &lt;!&ndash; Next Button &ndash;&gt;-->
-<!--        <Button-->
-<!--            android:id="@+id/btn_next_to_restaurants"-->
-<!--            android:layout_width="match_parent"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:text="Next"-->
-<!--            android:layout_marginTop="16dp"/>-->
-
-<!--    </LinearLayout>-->
-<!--</ScrollView>-->
+<!---->

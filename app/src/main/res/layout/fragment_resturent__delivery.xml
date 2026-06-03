@@ -4,21 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="10dp"
-    tools:context=".ui.main.Restaurant.resturent_DeliveryFragment">
+    android:padding="10dp">
 
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Available Delivery Boys"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="10dp"/>
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerDeliveryBoys"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
 
 </LinearLayout>
+<!---->

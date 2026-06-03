@@ -39,12 +39,12 @@ public class DeliveredOrdersFragment extends Fragment {
         firestore = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
 
-        // Sirf Assigned ya Delivered orders load karne ke liye
         loadDeliveredOrders();
         return view;
     }
 
     private void loadDeliveredOrders() {
+        if (auth.getCurrentUser() == null) return;
         String restId = auth.getCurrentUser().getUid();
 
         firestore.collection("Users")
@@ -54,30 +54,28 @@ public class DeliveredOrdersFragment extends Fragment {
                 .collection("Orders")
                 .whereIn("orderStatus", Arrays.asList("Assigned", "Delivered"))
                 .addSnapshotListener((querySnapshot, e) -> {
-                    if (e != null) {
-                        Toast.makeText(getContext(), "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+                    if (e != null || querySnapshot == null || !isAdded()) return;
 
                     orderList.clear();
+                    for (QueryDocumentSnapshot doc : querySnapshot) {
+                        MenuItem item = new MenuItem();
+                        item.setId(doc.getId());
+                        item.setName(doc.getString("itemName"));
+                        item.setDescription(doc.getString("itemDesc"));
+                        item.setImageUrl(doc.getString("itemImage"));
+                        item.setMeta(doc.getData());
+                        item.setDocPath(doc.getReference().getPath());
+                        item.setOrderStatus(doc.getString("orderStatus"));
 
-                    if (querySnapshot != null) {
-                        for (QueryDocumentSnapshot doc : querySnapshot) {
-                            MenuItem item = new MenuItem();
-                            item.setId(doc.getId());
-                            item.setName(doc.getString("itemName"));
-                            Double price = doc.getDouble("itemPrice");
-                            if (price == null) price = 0.0;
-                            item.setPrice(price);
-                            item.setDescription(doc.getString("itemDesc"));
-                            item.setImageUrl(doc.getString("itemImage"));
-                            item.setMeta(doc.getData());
-                            item.setDocPath(doc.getReference().getPath());
-                            item.setOrderStatus(doc.getString("orderStatus"));
-                            orderList.add(item);
+                        // ✅ FIX: Price handling via Variations Map
+                        Double price = doc.getDouble("itemPrice");
+                        if (price != null) {
+                            Map<String, Double> varMap = new HashMap<>();
+                            varMap.put("Default", price);
+                            item.setVariations(varMap);
                         }
+                        orderList.add(item);
                     }
-
                     adapter.notifyDataSetChanged();
                     updateLayout();
                 });
@@ -93,19 +91,15 @@ public class DeliveredOrdersFragment extends Fragment {
         }
     }
 
-    // ===================== Adapter =====================
     private static class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.ViewHolder> {
         private final ArrayList<MenuItem> items;
 
-        OrdersAdapter(ArrayList<MenuItem> items) {
-            this.items = items;
-        }
+        OrdersAdapter(ArrayList<MenuItem> items) { this.items = items; }
 
         @NonNull
         @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.passanger_item_menu, parent, false);
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.passanger_item_menu, parent, false);
             return new ViewHolder(v);
         }
 
@@ -114,52 +108,47 @@ public class DeliveredOrdersFragment extends Fragment {
             MenuItem m = items.get(pos);
 
             h.name.setText(m.getName());
-            h.price.setText("Rs. " + m.getPrice());
+
+            // ✅ FIX: Price display from Map
+            if (m.getVariations() != null && !m.getVariations().isEmpty()) {
+                h.price.setText("Rs. " + m.getVariations().values().iterator().next());
+            } else {
+                h.price.setText("Rs. 0");
+            }
+
             h.desc.setText(m.getDescription());
 
-            // Image Base64 decode
             if (m.getImageUrl() != null) {
                 try {
                     byte[] dec = Base64.decode(m.getImageUrl(), Base64.DEFAULT);
-                    Bitmap bmp = BitmapFactory.decodeByteArray(dec, 0, dec.length);
-                    h.image.setImageBitmap(bmp);
+                    h.image.setImageBitmap(BitmapFactory.decodeByteArray(dec, 0, dec.length));
                 } catch (Exception ignored) {}
             }
 
-            // Hide Add/Buy buttons
             Button btnAddToCart = h.itemView.findViewById(R.id.btnAddCart);
             Button btnBuyNow = h.itemView.findViewById(R.id.btnBuyNow);
             if (btnAddToCart != null) btnAddToCart.setVisibility(View.GONE);
             if (btnBuyNow != null) btnBuyNow.setVisibility(View.GONE);
 
-            // Show Delivered / Assigned badge
             if (h.txtBadge != null) {
                 h.txtBadge.setVisibility(View.VISIBLE);
                 if ("Assigned".equalsIgnoreCase(m.getOrderStatus())) {
                     h.txtBadge.setText("Assigned to Delivery");
                     h.txtBadge.setBackgroundResource(R.drawable.selected_circle_bg);
-                } else if ("Delivered".equalsIgnoreCase(m.getOrderStatus())) {
+                } else {
                     h.txtBadge.setText("Delivered");
                     h.txtBadge.setBackgroundResource(R.drawable.bg_badge_green);
                 }
             }
 
-            // Delivered button (optional)
             if (h.btnDelivered != null) {
                 if ("Assigned".equalsIgnoreCase(m.getOrderStatus())) {
                     h.btnDelivered.setVisibility(View.VISIBLE);
                     h.btnDelivered.setText("Mark as Delivered");
                     h.btnDelivered.setOnClickListener(v -> {
-                        FirebaseFirestore.getInstance()
-                                .document(m.getDocPath())
+                        FirebaseFirestore.getInstance().document(m.getDocPath())
                                 .update("orderStatus", "Delivered")
-                                .addOnSuccessListener(aVoid -> {
-                                    Toast.makeText(v.getContext(), "Order marked as delivered", Toast.LENGTH_SHORT).show();
-                                    m.setOrderStatus("Delivered");
-                                    notifyItemChanged(pos);
-                                })
-                                .addOnFailureListener(ex ->
-                                        Toast.makeText(v.getContext(), "Error: " + ex.getMessage(), Toast.LENGTH_SHORT).show());
+                                .addOnSuccessListener(a -> Toast.makeText(v.getContext(), "Updated", Toast.LENGTH_SHORT).show());
                     });
                 } else {
                     h.btnDelivered.setVisibility(View.GONE);
@@ -167,10 +156,7 @@ public class DeliveredOrdersFragment extends Fragment {
             }
         }
 
-        @Override
-        public int getItemCount() {
-            return items.size();
-        }
+        @Override public int getItemCount() { return items.size(); }
 
         static class ViewHolder extends RecyclerView.ViewHolder {
             TextView name, price, desc, txtBadge;

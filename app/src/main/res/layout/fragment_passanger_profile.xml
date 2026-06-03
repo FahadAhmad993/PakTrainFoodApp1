@@ -9,7 +9,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="#2E7D32"
+        android:background="@color/teal_700"
         android:gravity="center_vertical"
         android:paddingStart="20dp"
         android:elevation="4dp">
@@ -44,6 +44,7 @@
                     android:id="@+id/img_profile"
                     android:layout_width="100dp"
                     android:layout_height="100dp"
+                    android:background="@drawable/selected_circle_bg"
                     android:clipToOutline="true"
                     android:scaleType="centerCrop"
                     android:src="@drawable/ic_profile" />
@@ -80,25 +81,25 @@
                     android:padding="8dp">
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
-                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/info"/>
+                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_profile"/>
                         <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Account Info" android:textSize="16sp"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textStyle="bold"/>
                     </LinearLayout>
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
-                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ordermy"/>
+                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_profile"/>
                         <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="My Orders" android:textSize="16sp"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textStyle="bold"/>
                     </LinearLayout>
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
-                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/Adress"/>
+                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_profile"/>
                         <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Address" android:textSize="16sp"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textStyle="bold"/>
                     </LinearLayout>
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
-                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/setting"/>
+                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_profile"/>
                         <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Settings" android:textSize="16sp"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textStyle="bold"/>
                     </LinearLayout>
@@ -118,7 +119,7 @@
                     android:padding="8dp">
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
-                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/help"/>
+                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_profile"/>
                         <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Help &amp; Support" android:textSize="16sp"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textStyle="bold"/>
                     </LinearLayout>
@@ -132,7 +133,7 @@
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="24dp"
-                            android:src="@drawable/LOgout"/>
+                            android:src="@drawable/ic_profile"/>
                         <TextView
                             android:id="@+id/btn_logout"
                             android:layout_width="0dp"
@@ -148,3 +149,7 @@
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
+
+
+
+<!---->

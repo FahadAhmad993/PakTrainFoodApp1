@@ -59,4 +59,4 @@ public class CartFragment extends Fragment {
         // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_passanger_cart, container, false);
     }
-}
+}//

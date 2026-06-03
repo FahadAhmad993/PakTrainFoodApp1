@@ -1,5 +1,6 @@
 package com.example.paktrainfoodapp.ui.auth;
 
+import android.app.ProgressDialog; // 🔥 ProgressDialog Import Kiya
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -35,6 +36,8 @@ public class LoginFragment extends Fragment {
     private FirebaseFirestore db;
     private String selectedRole;
 
+    private ProgressDialog progressDialog; // 🔄 Loading Spiner
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -58,6 +61,11 @@ public class LoginFragment extends Fragment {
         auth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
+        // ⚙️ Progress Dialog Initialization
+        progressDialog = new ProgressDialog(requireContext());
+        progressDialog.setMessage("Logging in... Please wait.");
+        progressDialog.setCancelable(false); // User screen par click karke isko band na kar sake
+
         selectedRole = getArguments() != null
                 ? getArguments().getString(AuthActivity.USER_ROLE_KEY, "PASSENGER")
                 : "PASSENGER";
@@ -75,7 +83,6 @@ public class LoginFragment extends Fragment {
                 break;
         }
 
-
         btnLogin.setOnClickListener(v -> doLogin());
         txtForgotPassword.setOnClickListener(v -> sendResetPassword());
         txtGoRegister.setOnClickListener(v -> openRegisterFragment());
@@ -91,7 +98,8 @@ public class LoginFragment extends Fragment {
             return;
         }
 
-
+        // 🔄 Loader Show Karein
+        progressDialog.show();
 
         auth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
@@ -103,9 +111,11 @@ public class LoginFragment extends Fragment {
                         pref.setUserRole(selectedRole);
                         pref.setUserEmail(email);
 
-                        // Check registration in Firestore
+                        // Check registration in Firestore (Yahan se loader automatic handle hoga agle method me)
                         checkUserRegistration(uid, email);
                     } else {
+                        // ❌ Login fail ho gaya, loader close karein
+                        progressDialog.dismiss();
                         Toast.makeText(getContext(),
                                 "Login failed: " + task.getException().getMessage(),
                                 Toast.LENGTH_SHORT).show();
@@ -135,17 +145,19 @@ public class LoginFragment extends Fragment {
                 roleDoc = "Passenger";
         }
 
-
         db.collection(collectionPath)
                 .document(roleDoc)
                 .collection(subCollection)
                 .document(uid)
                 .get()
                 .addOnSuccessListener(doc -> handleUserCheck(doc, uid, email, roleDoc))
-                .addOnFailureListener(e ->
-                        Toast.makeText(getContext(),
-                                "Error checking user: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show());
+                .addOnFailureListener(e -> {
+                    // ❌ Error aane par loader lazmi dismiss karein
+                    progressDialog.dismiss();
+                    Toast.makeText(getContext(),
+                            "Error checking user: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
     }
 
     private void handleUserCheck(DocumentSnapshot doc, String uid, String email, String roleDoc) {
@@ -156,8 +168,14 @@ public class LoginFragment extends Fragment {
             pref.setRegistered(true, email);
             pref.setUserName(name);
             pref.setUserRole(roleDoc.toUpperCase());
+
+            // 🔓 Success! Main activity par jane se pehle loader band
+            progressDialog.dismiss();
             goToMainActivity();
         } else {
+            // 🔓 Agar Mazeed form khulna hai tab bhi loading band kar dein
+            progressDialog.dismiss();
+
             // Open additional registration form for Restaurant or Delivery
             if (selectedRole.equals("RESTAURANT")) {
                 openRestaurantRegisterForm(uid, email);
@@ -177,8 +195,14 @@ public class LoginFragment extends Fragment {
             return;
         }
 
+        // Optional: Yahan reset password ke liye bhi progress lagana chahein to laga sakte hain
+        progressDialog.setMessage("Sending reset email...");
+        progressDialog.show();
+
         auth.sendPasswordResetEmail(email)
                 .addOnCompleteListener(task -> {
+                    progressDialog.dismiss();
+                    progressDialog.setMessage("Logging in... Please wait."); // Reset original message
                     if (task.isSuccessful()) {
                         Toast.makeText(getContext(), "Password reset email sent", Toast.LENGTH_SHORT).show();
                     } else {
@@ -195,7 +219,10 @@ public class LoginFragment extends Fragment {
         Bundle b = new Bundle();
         b.putString(AuthActivity.USER_ROLE_KEY, selectedRole);
         fragment.setArguments(b);
-        ((AuthActivity) requireActivity()).loadFragment(fragment);
+
+        if (getActivity() instanceof AuthActivity) {
+            ((AuthActivity) getActivity()).loadFragment(fragment, true);
+        }
     }
 
     private void goToMainActivity() {
@@ -217,8 +244,8 @@ public class LoginFragment extends Fragment {
         fragment.setArguments(args);
 
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (isAdded()) {
-                ((AuthActivity) requireActivity()).loadFragment(fragment);
+            if (isAdded() && getActivity() instanceof AuthActivity) {
+                ((AuthActivity) getActivity()).loadFragment(fragment, true);
             }
         }, 300);
     }
@@ -231,12 +258,10 @@ public class LoginFragment extends Fragment {
         fragment.setArguments(args);
 
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (isAdded()) {
-                ((AuthActivity) requireActivity()).loadFragment(fragment);
+            if (isAdded() && getActivity() instanceof AuthActivity) {
+                ((AuthActivity) getActivity()).loadFragment(fragment, true);
             }
         }, 300);
     }
 }
-
-
 

@@ -58,6 +58,7 @@ dependencies {
     implementation("de.hdodenhof:circleimageview:3.1.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation(libs.swiperefreshlayout)
     annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
 
     implementation("com.google.maps.android:android-maps-utils:2.3.0")
@@ -69,54 +70,10 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+
 }
 
+//
 
-
-
-
-//dependencies {
-//    implementation(libs.appcompat)
-//    implementation(libs.material)
-//    implementation(libs.activity)
-//    implementation(libs.constraintlayout)
-//
-//    // --- Firebase BOM (zaroori) ---
-//    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
-//
-//    // Firebase services (jo chahiye wo rakho)
-//    implementation("com.google.firebase:firebase-analytics")
-//    implementation("com.google.firebase:firebase-auth")
-//    implementation("com.google.firebase:firebase-firestore")
-//    implementation("com.google.firebase:firebase-storage")
-//
-//    // Already added
-//    implementation(libs.firebase.auth)
-//    implementation(libs.credentials)
-//    implementation(libs.credentials.play.services.auth)
-//    implementation(libs.googleid)
-//    implementation(libs.firebase.database)
-//
-//    testImplementation(libs.junit)
-//    androidTestImplementation(libs.ext.junit)
-//    androidTestImplementation(libs.espresso.core)
-//    implementation("de.hdodenhof:circleimageview:3.1.0")
-//    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-//    implementation("com.github.bumptech.glide:glide:4.16.0")
-//    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
-//    implementation("com.squareup.okhttp3:okhttp:4.11.0")
-//    implementation("com.google.maps.android:android-maps-utils:2.3.0")
-//    implementation("com.google.android.gms:play-services-maps:19.0.0")
-//    implementation("com.google.android.gms:play-services-location:21.0.1")
-//
-//
-//    //for cloud messaging
-//    implementation(platform("com.google.firebase:firebase-bom:32.1.0"))
-//    implementation("com.google.firebase:firebase-messaging-ktx")
-//
-//    implementation(com.android.volley:volley:1.2.1)
-//
-//
-//
-//
-//}

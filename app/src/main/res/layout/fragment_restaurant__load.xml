@@ -116,7 +116,7 @@
                 android:textColor="@color/gray"/>
         </LinearLayout>
 
-        <!-- Profile -->
+
         <LinearLayout
             android:id="@+id/btn_profile"
             android:orientation="vertical"

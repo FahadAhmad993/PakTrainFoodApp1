@@ -1,5 +1,6 @@
 package com.example.paktrainfoodapp.ui.auth;
 
+import android.app.ProgressDialog;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -20,11 +21,17 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 import com.example.paktrainfoodapp.R;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+
+import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -36,6 +43,9 @@ import de.hdodenhof.circleimageview.CircleImageView;
 
 public class RegisterFragment extends Fragment {
 
+    // 🔥 APNI IMGBB API KEY YAHAN PASTE KAREIN
+    private static final String IMGBB_API_KEY = "48a067c9d290ecbca102dca44184ae22";
+
     private CircleImageView profileImage;
     private TextInputEditText edtName, edtEmail, edtPhone, edtPassword, edtConfirmPassword;
     private Button btnChooseImage, btnRegister;
@@ -43,9 +53,12 @@ public class RegisterFragment extends Fragment {
 
     private Uri imageUri = null;
     private String imageBase64 = null;
+    private String profileImageUrl = ""; // To store ImgBB online link
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
+    private ProgressDialog progressDialog; // 🔄 Loading Spinner
+    private RequestQueue requestQueue;
 
     private String userRole = "PASSENGER"; // default
 
@@ -54,6 +67,13 @@ public class RegisterFragment extends Fragment {
                 if (uri != null) {
                     imageUri = uri;
                     Glide.with(this).load(uri).into(profileImage);
+
+                    // Image select hote hi background mein convert karwa letay hain
+                    try {
+                        imageBase64 = convertImageToBase64(uri);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             });
 
@@ -81,6 +101,12 @@ public class RegisterFragment extends Fragment {
 
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
+        requestQueue = Volley.newRequestQueue(requireContext());
+
+        // ⚙️ Progress Dialog Initialization
+        progressDialog = new ProgressDialog(requireContext());
+        progressDialog.setMessage("Creating account & uploading profile... Please wait.");
+        progressDialog.setCancelable(false);
 
         if (getArguments() != null && getArguments().containsKey(AuthActivity.USER_ROLE_KEY)) {
             userRole = getArguments().getString(AuthActivity.USER_ROLE_KEY);
@@ -92,12 +118,17 @@ public class RegisterFragment extends Fragment {
     }
 
     private void goToLogin() {
-        Bundle bundle = new Bundle();
-        bundle.putString(AuthActivity.USER_ROLE_KEY, userRole);
-
-        LoginFragment fragment = new LoginFragment();
-        fragment.setArguments(bundle);
-        ((AuthActivity) requireActivity()).loadFragment(fragment);
+        if (getParentFragmentManager().getBackStackEntryCount() > 0) {
+            getParentFragmentManager().popBackStack();
+        } else {
+            Bundle bundle = new Bundle();
+            bundle.putString(AuthActivity.USER_ROLE_KEY, userRole);
+            LoginFragment fragment = new LoginFragment();
+            fragment.setArguments(bundle);
+            if (getActivity() instanceof AuthActivity) {
+                ((AuthActivity) getActivity()).loadFragment(fragment, true);
+            }
+        }
     }
 
     private void doRegister() {
@@ -123,32 +154,60 @@ public class RegisterFragment extends Fragment {
             return;
         }
 
-        if (imageUri == null) {
+        if (imageUri == null || imageBase64 == null) {
             Toast.makeText(getContext(), "Please select profile image", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        try {
-            imageBase64 = convertImageToBase64(imageUri);
-        } catch (IOException e) {
-            e.printStackTrace();
-            Toast.makeText(getContext(), "Error converting image", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        createFirebaseUser(name, email, phone, password, imageBase64);
+        // 🔄 Sab valid hai, ab Progress Dialog show karein aur sequence start karein
+        progressDialog.show();
+        uploadProfileImageToImgBB(name, email, phone, password);
     }
 
     private String convertImageToBase64(Uri imageUri) throws IOException {
         InputStream inputStream = requireContext().getContentResolver().openInputStream(imageUri);
         Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
+        // 🔄 Quality 50% rakhi hai taake profile image instantly upload ho
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, byteArrayOutputStream);
         byte[] imageBytes = byteArrayOutputStream.toByteArray();
         return Base64.encodeToString(imageBytes, Base64.DEFAULT);
     }
 
-    private void createFirebaseUser(String name, String email, String phone, String password, String imageBase64) {
+    // 🚀 STEP 1: Upload Profile Image to ImgBB First
+    private void uploadProfileImageToImgBB(String name, String email, String phone, String password) {
+        String url = "https://api.imgbb.com/1/upload?key=" + IMGBB_API_KEY;
+
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, url,
+                response -> {
+                    try {
+                        JSONObject jsonObject = new JSONObject(response);
+                        profileImageUrl = jsonObject.getJSONObject("data").getString("url");
+
+                        // Image upload ho gayi, ab Firebase Auth user
+                        createFirebaseUser(name, email, phone, password);
+                    } catch (Exception e) {
+                        progressDialog.dismiss();
+                        Toast.makeText(getContext(), "Image Parsing Error", Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    progressDialog.dismiss();
+                    Toast.makeText(getContext(), "Image Upload Failed: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("image", imageBase64);
+                return params;
+            }
+        };
+
+        requestQueue.add(stringRequest);
+    }
+
+    // 🚀 STEP 2: Authenticate User and Save Small URL Link in Firestore
+    private void createFirebaseUser(String name, String email, String phone, String password) {
         mAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(requireActivity(), task -> {
                     if (task.isSuccessful()) {
@@ -159,10 +218,11 @@ public class RegisterFragment extends Fragment {
                         user.put("name", name);
                         user.put("email", email);
                         user.put("phone", phone);
-                        user.put("imageBase64", imageBase64);
+
+                        // 🔥 Ab Base64 string nahi, chota sa clean web link database me save hoga
+                        user.put("profileImageUrl", profileImageUrl);
                         user.put("role", userRole);
 
-                        // Firestore structure
                         String parentCollection;
                         if (userRole.equals("PASSENGER"))
                             parentCollection = "Passenger";
@@ -177,17 +237,19 @@ public class RegisterFragment extends Fragment {
                                 .document(uid)
                                 .set(user)
                                 .addOnSuccessListener(unused -> {
+                                    progressDialog.dismiss();
                                     Toast.makeText(getContext(), "Registered successfully as " + userRole, Toast.LENGTH_SHORT).show();
                                     goToLogin();
                                 })
-                                .addOnFailureListener(e ->
-                                        Toast.makeText(getContext(), "Firestore error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                                .addOnFailureListener(e -> {
+                                    progressDialog.dismiss();
+                                    Toast.makeText(getContext(), "Firestore error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                });
                     } else {
+                        progressDialog.dismiss();
                         Toast.makeText(getContext(), "Auth failed: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 }
-
-
 

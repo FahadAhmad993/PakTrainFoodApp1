@@ -76,39 +76,43 @@
                     android:textColor="#000" />
             </LinearLayout>
 
-            <!-- FOOD INFO CARD -->
+            <!-- ORDER ITEMS CARD -->
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@android:color/white"
                 android:elevation="4dp"
                 android:padding="16dp"
-                android:orientation="vertical">
+                android:orientation="vertical"
+                android:layout_marginTop="12dp">
 
                 <TextView
-                    android:id="@+id/txtName"
-                    android:layout_height="wrap_content"
                     android:layout_width="wrap_content"
-                    android:text="Food Name"
+                    android:layout_height="wrap_content"
+                    android:text="Order Items"
                     android:textStyle="bold"
-                    android:textSize="18sp" />
+                    android:textSize="18sp"
+                    android:textColor="#000"/>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/recyclerItems"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false"
+                    android:layout_marginTop="10dp"/>
 
                 <TextView
-                    android:id="@+id/txtPrice"
-                    android:layout_height="wrap_content"
+                    android:id="@+id/txtTotalPrice"
                     android:layout_width="wrap_content"
-                    android:text="Rs 0"
-                    android:textSize="14sp" />
+                    android:layout_height="wrap_content"
+                    android:text="Total: Rs 0"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:textColor="#009688"
+                    android:layout_marginTop="10dp"/>
 
-                <TextView
-                    android:id="@+id/txtDesc"
-                    android:layout_height="wrap_content"
-                    android:layout_width="wrap_content"
-                    android:text="Description"
-                    android:textSize="14sp"
-                    android:paddingTop="8dp" />
             </LinearLayout>
-
             <!-- TRAIN INFO CARD -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -147,6 +151,17 @@
     </ScrollView>
 
 </LinearLayout>
+
+
+
+
+
+
+
+
+
+
+
 
 
 

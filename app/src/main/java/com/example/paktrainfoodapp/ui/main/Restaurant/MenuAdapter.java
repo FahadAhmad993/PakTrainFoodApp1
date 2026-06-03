@@ -1,15 +1,18 @@
 package com.example.paktrainfoodapp.ui.main.Restaurant;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.util.Base64;
-import android.view.*;
-import android.widget.*;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import com.bumptech.glide.Glide;
 import com.example.paktrainfoodapp.R;
 import java.util.List;
+import java.util.Map;
 
 public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.VH> {
 
@@ -41,24 +44,26 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.VH> {
 
         holder.tvName.setText(it.getName());
         holder.tvDesc.setText(it.getDescription());
-        holder.tvPrice.setText("Rs. " + (int) it.getPrice());
         holder.tvTime.setText(it.getTime() != null ? it.getTime() : "");
 
-        // ✅ Safe Base64 decode
-        try {
-            if (it.getImageUrl() != null && !it.getImageUrl().isEmpty()) {
-                byte[] bytes = Base64.decode(it.getImageUrl(), Base64.DEFAULT);
-                Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                if (bmp != null) holder.iv.setImageBitmap(bmp);
-                else holder.iv.setImageResource(R.drawable.ic_food_placeholder);
-            } else {
-                holder.iv.setImageResource(R.drawable.ic_food_placeholder);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            holder.iv.setImageResource(R.drawable.ic_food_placeholder);
+        // ✅ FIX: Price display logic from Variations Map
+        if (it.getVariations() != null && !it.getVariations().isEmpty()) {
+            // Map ki pehli value ko price ke taur par dikha rahe hain
+            Map.Entry<String, Double> entry = it.getVariations().entrySet().iterator().next();
+            holder.tvPrice.setText("Rs. " + entry.getValue().intValue());
+        } else {
+            holder.tvPrice.setText("Rs. 0");
         }
 
+        // URL Loading Logic
+        Glide.with(ctx)
+                .load(it.getImageUrl())
+                .placeholder(R.drawable.ic_food_placeholder)
+                .error(R.drawable.ic_food_placeholder)
+                .centerCrop()
+                .into(holder.iv);
+
+        // Click Listeners
         holder.btnEdit.setOnClickListener(v -> {
             if (listener != null) listener.onEdit(it);
         });
@@ -90,5 +95,7 @@ public class MenuAdapter extends RecyclerView.Adapter<MenuAdapter.VH> {
         }
     }
 }
+
+//
 
 

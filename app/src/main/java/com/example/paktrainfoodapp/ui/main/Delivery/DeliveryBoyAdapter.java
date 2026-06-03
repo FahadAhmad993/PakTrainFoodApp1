@@ -1,90 +1,123 @@
 package com.example.paktrainfoodapp.ui.main.Delivery;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.util.Base64;
+import android.app.AlertDialog;
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.paktrainfoodapp.R;
 
-import java.util.List;
+import java.util.ArrayList;
 
-public class DeliveryBoyAdapter extends RecyclerView.Adapter<DeliveryBoyAdapter.ViewHolder> {
+public class DeliveryBoyAdapter extends RecyclerView.Adapter<DeliveryBoyAdapter.VH> {
 
-    private List<DeliveryBoyModel> deliveryBoyList;
+    public interface OnAcceptClick {
+        void onAccept(DeliveryBoyModel order, int position);
+    }
 
-    public DeliveryBoyAdapter(List<DeliveryBoyModel> deliveryBoyList) {
-        this.deliveryBoyList = deliveryBoyList;
+    private final Context context;
+    private final ArrayList<DeliveryBoyModel> list;
+    private final OnAcceptClick listener;
+
+    public DeliveryBoyAdapter(
+            Context context,
+            ArrayList<DeliveryBoyModel> list,
+            OnAcceptClick listener) {
+
+        this.context = context;
+        this.list = list;
+        this.listener = listener;
     }
 
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_delivery_boy, parent, false);
-        return new ViewHolder(view);
+    public VH onCreateViewHolder(
+            @NonNull ViewGroup parent,
+            int viewType) {
+
+        View view = LayoutInflater.from(context)
+                .inflate(
+                        R.layout.passanger_order_item_simple,
+                        parent,
+                        false
+                );
+
+        return new VH(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        DeliveryBoyModel boy = deliveryBoyList.get(position);
+    public void onBindViewHolder(
+            @NonNull VH holder,
+            int position) {
 
-        //  Set Name, Phone, Email and Image
-        holder.tvName.setText(boy.getName() != null && !boy.getName().isEmpty() ? boy.getName() : "DeliveryBoy");
-        holder.tvPhone.setText(boy.getPhone() != null ? boy.getPhone() : "N/A");
-        holder.tvEmail.setText(boy.getEmail() != null ? boy.getEmail() : "N/A");
+        DeliveryBoyModel order = list.get(position);
 
-        //  Load Image  base64 string
-        if (boy.getImageBase64() != null && !boy.getImageBase64().isEmpty()) {
-            try {
-                byte[] decodedString = Base64.decode(boy.getImageBase64(), Base64.DEFAULT);
-                Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
-                holder.imgDeliveryBoy.setImageBitmap(decodedByte);
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-                holder.imgDeliveryBoy.setImageResource(R.drawable.ic_food_placeholder);
-            }
-        } else {
-            holder.imgDeliveryBoy.setImageResource(R.drawable.ic_food_placeholder);
-        }
+        holder.txtOrderId.setText(
+                "Order ID: " + order.getOrderId());
 
-        //  Button Click Event
-        holder.btnDeliverOrder.setOnClickListener(v ->
-                Toast.makeText(v.getContext(),
-                        "Deliver Order clicked for " + (boy.getName() != null ? boy.getName() : "DeliveryBoy"),
-                        Toast.LENGTH_SHORT).show()
-        );
+        holder.txtTotalPrice.setText(
+                "Rs. " + (int) order.getTotalPrice());
+
+        holder.btnAccept.setVisibility(View.VISIBLE);
+
+        holder.btnAccept.setOnClickListener(v -> {
+
+            new AlertDialog.Builder(context)
+                    .setTitle("Accept Order")
+                    .setMessage("Accept this order?")
+                    .setPositiveButton("Yes",
+                            (dialog, which) -> {
+
+                                if (listener != null) {
+                                    listener.onAccept(
+                                            order,
+                                            holder.getAdapterPosition()
+                                    );
+                                }
+                            })
+                    .setNegativeButton("No", null)
+                    .show();
+        });
     }
 
     @Override
     public int getItemCount() {
-        return deliveryBoyList.size();
+        return list.size();
     }
 
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvName, tvPhone, tvEmail;
-        ImageView imgDeliveryBoy;
-        Button btnDeliverOrder;
+    static class VH extends RecyclerView.ViewHolder {
 
-        public ViewHolder(@NonNull View itemView) {
+        TextView txtOrderId;
+        TextView txtTotalPrice;
+        ImageView btnAccept;
+
+        VH(@NonNull View itemView) {
             super(itemView);
-            tvName = itemView.findViewById(R.id.tvName);
-            tvPhone = itemView.findViewById(R.id.tvPhone);
-            tvEmail = itemView.findViewById(R.id.tvEmail);
-            imgDeliveryBoy = itemView.findViewById(R.id.imgDeliveryBoy);
-            btnDeliverOrder = itemView.findViewById(R.id.btnDeliverOrder);
+
+            txtOrderId =
+                    itemView.findViewById(R.id.txtOrderId);
+
+            txtTotalPrice =
+                    itemView.findViewById(R.id.txtTotalPrice);
+
+            btnAccept =
+                    itemView.findViewById(R.id.btnAccept);
         }
     }
 }
+
+
+
+//
+
+
+
 
 
 

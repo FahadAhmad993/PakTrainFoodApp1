@@ -70,7 +70,7 @@ public class DeliveryOrderFragment extends Fragment {
         ft.commit();
     }
 }
-
+//
 
 
 

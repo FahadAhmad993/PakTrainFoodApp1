@@ -7,13 +7,14 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentTransaction;
 import com.example.paktrainfoodapp.R;
 import com.google.android.material.tabs.TabLayout;
 
 public class returent_OrdersFragment extends Fragment {
 
     private TabLayout tabsOrders;
+    // Track active fragment to prevent redundant reloads
+    private Fragment activeFragment = null;
 
     @Nullable
     @Override
@@ -30,28 +31,13 @@ public class returent_OrdersFragment extends Fragment {
         tabsOrders.addTab(tabsOrders.newTab().setText("Delivered"));
         tabsOrders.addTab(tabsOrders.newTab().setText("Completed"));
 
-        // 🔹 Default Load: Active Orders
-        replaceChildFragment(new ActiveOrdersFragment());
+        // 🔹 Default Load
+        loadTabFragment(0);
 
         tabsOrders.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
-                Fragment selected = null;
-                switch (tab.getPosition()) {
-                    case 0:
-                        selected = new ActiveOrdersFragment();
-                        break;
-                    case 1:
-                        selected = new AcceptedOrdersFragment();
-                        break;
-                    case 2:
-                        selected = new DeliveredOrdersFragment();
-                        break;
-                    case 3:
-                        selected = new CompletedOrdersFragment();
-                        break;
-                }
-                replaceChildFragment(selected);
+                loadTabFragment(tab.getPosition());
             }
 
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
@@ -61,13 +47,33 @@ public class returent_OrdersFragment extends Fragment {
         return view;
     }
 
+    private void loadTabFragment(int position) {
+        Fragment selected;
+        switch (position) {
+            case 1: selected = new AcceptedOrdersFragment(); break;
+            case 2: selected = new DeliveredOrdersFragment(); break;
+            case 3: selected = new CompletedOrdersFragment(); break;
+            case 0:
+            default: selected = new ActiveOrdersFragment(); break;
+        }
+
+        // ✅ FIX: Check if the same tab is being clicked again to avoid glitch
+        if (activeFragment != null && activeFragment.getClass().equals(selected.getClass())) {
+            return;
+        }
+
+        replaceChildFragment(selected);
+        activeFragment = selected;
+    }
+
     private void replaceChildFragment(Fragment fragment) {
-        FragmentTransaction ft = getChildFragmentManager().beginTransaction();
-        ft.replace(R.id.orders_tab_container, fragment);
-        ft.commit();
+        getChildFragmentManager()
+                .beginTransaction()
+                .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+                .replace(R.id.orders_tab_container, fragment)
+                .commitAllowingStateLoss(); // Use this to avoid state loss crash
     }
 }
 
 
-
-
+//
