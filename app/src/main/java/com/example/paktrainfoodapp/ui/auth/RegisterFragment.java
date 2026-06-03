@@ -237,7 +237,7 @@ public class RegisterFragment extends Fragment {
                                 .document(uid)
                                 .set(user)
                                 .addOnSuccessListener(unused -> {
-                                    progressDialog.dismiss(); // Loader Close
+                                    progressDialog.dismiss();
                                     Toast.makeText(getContext(), "Registered successfully as " + userRole, Toast.LENGTH_SHORT).show();
                                     goToLogin();
                                 })

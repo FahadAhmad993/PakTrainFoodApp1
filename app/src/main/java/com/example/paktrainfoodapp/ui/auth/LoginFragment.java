@@ -36,7 +36,7 @@ public class LoginFragment extends Fragment {
     private FirebaseFirestore db;
     private String selectedRole;
 
-    private ProgressDialog progressDialog; // 🔄 Loading Spinner
+    private ProgressDialog progressDialog; // 🔄 Loading Spiner
 
     @Nullable
     @Override

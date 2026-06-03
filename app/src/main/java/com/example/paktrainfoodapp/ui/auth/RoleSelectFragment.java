@@ -41,7 +41,7 @@ public class RoleSelectFragment extends Fragment {
         Bundle bundle = new Bundle();
         bundle.putString(AuthActivity.USER_ROLE_KEY, role);
 
-        // Kyunki teeno cases mein LoginFragment hi khulna hai, switch ki zaroorat nahi
+        // Kyunki teeno cases mein LoginFragment hi khulna hai, switch ki zaroorat ni
         LoginFragment loginFragment = new LoginFragment();
         loginFragment.setArguments(bundle);
 

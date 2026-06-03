@@ -20,7 +20,7 @@ public class AuthActivity extends AppCompatActivity {
         }
     }
 
-    // Humne boolean flag add kiya hai addToBackStack ko control
+    // Humne boolean flag add kiya hai addToBackStack ko
     public void loadFragment(Fragment fragment, boolean addToBackStack) {
         androidx.fragment.app.FragmentTransaction transaction = getSupportFragmentManager()
                 .beginTransaction()
