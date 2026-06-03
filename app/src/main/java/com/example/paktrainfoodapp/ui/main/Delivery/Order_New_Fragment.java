@@ -71,7 +71,7 @@ public class Order_New_Fragment extends Fragment {
 
                     db.document(order.getDocPath())
                             .update(
-                                    "orderStatus", "Accepted",
+                                    "orderStatus", "Accept",
                                     "acceptedBy", riderId
                             )
                             .addOnSuccessListener(unused -> {

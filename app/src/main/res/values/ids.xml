@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <item name="ivProfile" type="id">ivProfile</item>
-    <item name="tvCity" type="id">tvCity</item>
+    <item type="id" name="ivProfile"/>
+    <item type="id" name="tvCity"/>
 </resources>
