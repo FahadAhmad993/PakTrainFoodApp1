@@ -5,153 +5,137 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
+import androidx.appcompat.widget.Toolbar;
 
 import com.example.paktrainfoodapp.R;
+import com.example.paktrainfoodapp.utils.Refreshable;
+import com.example.paktrainfoodapp.utils.RefreshHelper;
 import com.google.android.material.tabs.TabLayout;
 
-public class OrderFragment extends Fragment {
+public class OrderFragment extends Fragment implements Refreshable {
 
     private TabLayout tabsOrders;
     private ImageView headerImage;
+    private Toolbar toolbarOrders;
+    private ProgressBar progressRefresh;
+
+    public OrderFragment() {}
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
 
-        View view = inflater.inflate(R.layout.fragment_passanger_order, container, false);
+        return inflater.inflate(R.layout.fragment_passanger_order, container, false);
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+
+        super.onViewCreated(view, savedInstanceState);
 
         tabsOrders = view.findViewById(R.id.tabsOrders);
         headerImage = view.findViewById(R.id.headerImage);
+        progressRefresh = view.findViewById(R.id.progressRefresh);
+        toolbarOrders = view.findViewById(R.id.toolbarOrders);
 
-        // Tabs
-        tabsOrders.addTab(tabsOrders.newTab().setText("Active"));
-        tabsOrders.addTab(tabsOrders.newTab().setText("Accepted"));
-        tabsOrders.addTab(tabsOrders.newTab().setText("Delivered"));
-        tabsOrders.addTab(tabsOrders.newTab().setText("Completed"));
+        RefreshHelper.setupRefresh(toolbarOrders, this, this);
 
-        // Default: Active
-        replaceChildFragment(new ActiveOrdersFragment());
+        if (tabsOrders.getTabCount() == 0) {
+            tabsOrders.addTab(tabsOrders.newTab().setText("Active"));
+            tabsOrders.addTab(tabsOrders.newTab().setText("Accepted"));
+            tabsOrders.addTab(tabsOrders.newTab().setText("Delivered"));
+            tabsOrders.addTab(tabsOrders.newTab().setText("Completed"));
+        }
+
+        if (savedInstanceState == null) {
+            replaceChildFragment(new ActiveOrdersFragment());
+        }
 
         tabsOrders.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
-                Fragment selected = null;
-                switch (tab.getPosition()) {
-                    case 0:
-                        selected = new ActiveOrdersFragment();
-                        break;
-                    case 1:
-                        selected = new AcceptedOrdersFragment();
-                        break;
-                    case 2:
-                        selected = new DeliveredOrdersFragment();
-                        break;
-                    case 3:
-                        selected = new CompletedOrdersFragment();
-                        break;
-                }
-                replaceChildFragment(selected);
+                replaceChildFragment(getFragmentByTab(tab.getPosition()));
             }
 
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
             @Override public void onTabReselected(TabLayout.Tab tab) {}
         });
-
-        return view;
     }
 
+    // ================= TAB FRAGMENTS =================
+    private Fragment getFragmentByTab(int position) {
+
+        switch (position) {
+            case 0:
+                return new ActiveOrdersFragment();
+            case 1:
+                return new AcceptedOrdersFragment();
+            case 2:
+                return new DeliveredOrdersFragment();
+            case 3:
+                return new CompletedOrdersFragment();
+            default:
+                return new ActiveOrdersFragment();
+        }
+    }
+
+    // ================= FRAGMENT REPLACE =================
     private void replaceChildFragment(Fragment fragment) {
-        FragmentTransaction ft = getChildFragmentManager().beginTransaction();
-        ft.replace(R.id.orders_tab_container, fragment);
-        ft.commit();
+
+        if (!isAdded() || getActivity() == null) return;
+
+        try {
+            getChildFragmentManager()
+                    .beginTransaction()
+                    .setReorderingAllowed(true)
+                    .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+                    .replace(R.id.orders_tab_container, fragment)
+                    .commit();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
+
+    //  REFRESH
+    @Override
+    public void refreshData() {
+
+        Fragment current = getChildFragmentManager()
+                .findFragmentById(R.id.orders_tab_container);
+
+        if (current instanceof Refreshable) {
+
+            // show loading in parent (SAFE)
+            if (progressRefresh != null) {
+                progressRefresh.setVisibility(View.VISIBLE);
+            }
+
+            // refresh child data
+            ((Refreshable) current).refreshData();
+
+            // hide loader after short delay
+            tabsOrders.postDelayed(() -> {
+
+                if (progressRefresh != null) {
+                    progressRefresh.setVisibility(View.GONE);
+                }
+
+            }, 800);
+        }
+    }
+
 }
 
 
 
+//
 
-//package com.example.paktrainfoodapp.ui.main.Passenger;
-//
-//import android.os.Bundle;
-//import android.view.LayoutInflater;
-//import android.view.View;
-//import android.view.ViewGroup;
-//import android.widget.ImageView;
-//
-//import androidx.annotation.NonNull;
-//import androidx.annotation.Nullable;
-//import androidx.fragment.app.Fragment;
-//import androidx.fragment.app.FragmentTransaction;
-//
-//import com.example.paktrainfoodapp.R;
-//import com.google.android.material.tabs.TabLayout;
-//
-//public class OrderFragment extends Fragment {
-//
-//    private TabLayout tabsOrders;
-//    private ImageView headerImage;
-//
-//    @Nullable
-//    @Override
-//    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-//                             @Nullable Bundle savedInstanceState) {
-//
-//        // ✅ Updated layout file name
-//        View view = inflater.inflate(R.layout.fragment_passanger_order, container, false);
-//
-//        // ✅ Bind views
-//        tabsOrders = view.findViewById(R.id.tabsOrders);
-//        headerImage = view.findViewById(R.id.headerImage);
-//
-//        // ✅ Add tabs manually (if not added in XML)
-//        tabsOrders.addTab(tabsOrders.newTab().setText("Active"));
-//        tabsOrders.addTab(tabsOrders.newTab().setText("Accepted"));
-//        tabsOrders.addTab(tabsOrders.newTab().setText("Delivered"));
-//        tabsOrders.addTab(tabsOrders.newTab().setText("Completed"));
-//
-//        // ✅ Show first tab (Active Orders) by default
-//        replaceChildFragment(new ActiveOrdersFragment());
-//
-//        // ✅ Tab selection listener
-//        tabsOrders.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-//            @Override
-//            public void onTabSelected(TabLayout.Tab tab) {
-//                switch (tab.getPosition()) {
-//                    case 0:
-//                        replaceChildFragment(new ActiveOrdersFragment());
-//                        break;
-//                    case 1:
-//                        replaceChildFragment(new AcceptedOrdersFragment());
-//                        break;
-//                    case 2:
-//                        replaceChildFragment(new DeliveredOrdersFragment());
-//                        break;
-//                    case 3:
-//                        replaceChildFragment(new CompletedOrdersFragment());
-//                        break;
-//                }
-//            }
-//
-//            @Override
-//            public void onTabUnselected(TabLayout.Tab tab) { }
-//
-//            @Override
-//            public void onTabReselected(TabLayout.Tab tab) { }
-//        });
-//
-//        return view;
-//    }
-//
-//    // ✅ Helper method to replace child fragment
-//    private void replaceChildFragment(Fragment fragment) {
-//        FragmentTransaction transaction = getChildFragmentManager().beginTransaction();
-//        transaction.replace(R.id.orders_tab_container, fragment);
-//        transaction.commit();
-//    }
-//}

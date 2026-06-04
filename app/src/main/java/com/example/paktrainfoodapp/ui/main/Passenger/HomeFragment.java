@@ -5,42 +5,39 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
-import android.widget.Button;
-import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.widget.*;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentTransaction;
 
 import com.example.paktrainfoodapp.R;
+import com.example.paktrainfoodapp.ui.main.Passenger.Passenger_Fragment_Loader;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("unchecked")
 public class HomeFragment extends Fragment {
 
-    private ImageView imageTop;
     private AutoCompleteTextView actvFrom, actvTo, actvTrain, actvMealStation;
-    private ImageButton btnSwap;
     private Button btnNext;
     private TextView tvRoutePreview;
 
-    private List<String> allStations = new ArrayList<>();
-    private Map<String, List<String>> trainRoutes = new HashMap<>();
-    private List<String> trainNames = new ArrayList<>();
     private FirebaseFirestore db;
 
-    public HomeFragment() {}
+    private final List<String> allStations = new ArrayList<>();
+    private final List<String> trainNames = new ArrayList<>();
+
+    private final Map<String, List<String>> trainRoutes = new HashMap<>();
+    private final Map<String, String> trainRouteIds = new HashMap<>();
+
+    public HomeFragment() {
+    }
 
     @Nullable
     @Override
@@ -54,37 +51,30 @@ public class HomeFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        imageTop = view.findViewById(R.id.image_station_top);
         actvFrom = view.findViewById(R.id.actv_from);
         actvTo = view.findViewById(R.id.actv_to);
         actvTrain = view.findViewById(R.id.actv_train);
         actvMealStation = view.findViewById(R.id.actv_meal_station);
-        btnSwap = view.findViewById(R.id.btn_swap);
         btnNext = view.findViewById(R.id.btn_next_to_restaurants);
         tvRoutePreview = view.findViewById(R.id.tv_route_preview);
 
         db = FirebaseFirestore.getInstance();
 
-        seedLocalData();
-        setupStationAdapters();
-        setupTrainAdapter();
+        loadAllData();
 
+        // Dropdowns automation triggers
         actvFrom.setOnClickListener(v -> actvFrom.showDropDown());
         actvTo.setOnClickListener(v -> actvTo.showDropDown());
         actvTrain.setOnClickListener(v -> actvTrain.showDropDown());
         actvMealStation.setOnClickListener(v -> actvMealStation.showDropDown());
 
-        btnSwap.setOnClickListener(v -> swapFromTo());
+        actvFrom.setOnItemClickListener((parent, view1, position, id) -> filterTrains());
+        actvTo.setOnItemClickListener((parent, view1, position, id) -> filterTrains());
 
-        actvTrain.setOnItemClickListener((parent, view1, position, id) -> {
-            String selTrain = (String) parent.getItemAtPosition(position);
-            populateMealStationsForTrain(selTrain,
-                    actvFrom.getText().toString(),
-                    actvTo.getText().toString());
+        actvTrain.setOnItemClickListener((parent, view12, position, id) -> {
+            String train = (String) parent.getItemAtPosition(position);
+            showRoute(train);
         });
-
-        actvFrom.setOnItemClickListener((parent, view12, position, id) -> filterTrainsByStations());
-        actvTo.setOnItemClickListener((parent, view13, position, id) -> filterTrainsByStations());
 
         btnNext.setOnClickListener(v -> {
             String from = actvFrom.getText().toString().trim();
@@ -94,117 +84,197 @@ public class HomeFragment extends Fragment {
 
             if (TextUtils.isEmpty(from) || TextUtils.isEmpty(to)
                     || TextUtils.isEmpty(train) || TextUtils.isEmpty(mealStation)) {
-                Toast.makeText(requireContext(),
-                        "Please select From, To, Train and Meal Station", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "Select From, To, Train and Meal Station", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            // Navigate to Station_Menu_Fragment
-//            Station_Menu_Fragment fragment = new Station_Menu_Fragment();
-            Passanger_Resturent_list_Fragment fragment = new Passanger_Resturent_list_Fragment();
-            Bundle bundle = new Bundle();
-            bundle.putString("selectedCity", mealStation);
-            fragment.setArguments(bundle);
+            String routeId = trainRouteIds.get(train);
+            if (routeId == null) {
+                Toast.makeText(getContext(), "Route ID missing", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-            FragmentTransaction transaction = requireActivity()
-                    .getSupportFragmentManager()
-                    .beginTransaction();
-            transaction.replace(R.id.fragment_holder, fragment);
-            transaction.addToBackStack(null);
-            transaction.commit();
+            Passanger_Resturent_list_Fragment fragment = new Passanger_Resturent_list_Fragment();
+            Bundle b = new Bundle();
+            b.putString("selectedCity", mealStation);
+            b.putString("TRAIN_NAME", train);
+            b.putString("TRAIN_ID", train);
+            b.putString("ROUTE_ID", routeId);
+            b.putString("FROM", from);
+            b.putString("TO", to);
+            fragment.setArguments(b);
+
+            // Loader wrapper handling
+            Fragment parentFrag = getParentFragment();
+            if (parentFrag instanceof Passenger_Fragment_Loader) {
+                ((Passenger_Fragment_Loader) parentFrag).openRestaurantList(fragment);
+            } else {
+                getParentFragmentManager()
+                        .beginTransaction()
+                        .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+                        .replace(getId(), fragment)
+                        .addToBackStack(null)
+                        .commit();
+            }
         });
     }
 
-    private void swapFromTo() {
-        String a = actvFrom.getText().toString();
-        String b = actvTo.getText().toString();
-        actvFrom.setText(b);
-        actvTo.setText(a);
-        filterTrainsByStations();
+    // ================= LOAD DATA WITH SAFETY =================
+    private void loadAllData() {
+        db.collection("RailwaySystem")
+                .document("main")
+                .collection("Stations")
+                .get()
+                .addOnSuccessListener(stations -> {
+                    if (!isAdded() || getContext() == null) return; // Crash guard
+                    allStations.clear();
+                    for (DocumentSnapshot doc : stations.getDocuments()) {
+                        allStations.add(doc.getId());
+                    }
+                    setupStationAdapter();
+                });
+
+        db.collection("RailwaySystem")
+                .document("main")
+                .collection("Trains")
+                .get()
+                .addOnSuccessListener(trains -> {
+                    if (!isAdded() || getContext() == null) return; // Crash guard
+                    trainNames.clear();
+                    trainRouteIds.clear();
+                    for (DocumentSnapshot doc : trains.getDocuments()) {
+                        String name = doc.getString("name");
+                        String number = doc.getString("number");
+                        String routeId = doc.getString("routeId");
+
+                        if (name == null || routeId == null)
+                            continue;
+
+                        String fullName = (number != null) ? name + " (" + number + ")" : name;
+                        trainNames.add(fullName);
+                        trainRouteIds.put(fullName, routeId);
+                    }
+                    setupTrainAdapter();
+                    preloadRoutes();
+                });
     }
 
-    private void seedLocalData() {
-        allStations = Arrays.asList(
-                "Karachi Cantt", "Hyderabad Jn", "Sukkur", "Rohri Jn", "Multan Cantt",
-                "Bahawalpur", "Rahim Yar Khan", "Sahiwal", "Faisalabad",
-                "Sargodha Jn", "Gujranwala", "Wazirabad Jn", "Lahore Jn",
-                "Gujrat", "Mandi Bahauddin", "Malakwal Jn", "Lalamusa Jn", "Jhelum",
-                "Rawalpindi", "Islamabad", "Attock", "Peshawar Cantt"
-        );
+    // ================= PRELOAD ROUTES WITH BACKGROUND LOOP PROTECTION =================
+    private void preloadRoutes() {
+        db.collection("RailwaySystem")
+                .document("main")
+                .collection("Routes")
+                .get()
+                .addOnSuccessListener(routes -> {
+                    if (!isAdded() || getContext() == null) return; // Crash guard
+                    trainRoutes.clear();
+                    for (DocumentSnapshot doc : routes.getDocuments()) {
+                        String routeId = doc.getId();
+                        List<Map<String, Object>> stationMaps = (List<Map<String, Object>>) doc.get("stations");
 
-        trainRoutes.put("Khyber Mail", Arrays.asList(
-                "Karachi Cantt", "Hyderabad Jn", "Rohri Jn", "Multan Cantt", "Lahore Jn", "Rawalpindi", "Peshawar Cantt"
-        ));
-        trainRoutes.put("Green Line", Arrays.asList(
-                "Lahore Jn", "Faisalabad", "Sargodha Jn", "Malakwal Jn", "Lalamusa Jn"
-        ));
-        trainRoutes.put("Awam Express", Arrays.asList(
-                "Peshawar Cantt", "Attock", "Rawalpindi", "Lahore Jn", "Karachi Cantt"
-        ));
-        trainNames.clear();
-        trainNames.addAll(trainRoutes.keySet());
+                        if (stationMaps == null)
+                            continue;
+
+                        List<String> stationNames = new ArrayList<>();
+                        for (Map<String, Object> stationMap : stationMaps) {
+                            String stationName = (String) stationMap.get("name");
+                            if (stationName != null) {
+                                stationNames.add(stationName);
+                            }
+                        }
+
+                        for (String train : trainRouteIds.keySet()) {
+                            if (routeId.equals(trainRouteIds.get(train))) {
+                                trainRoutes.put(train, stationNames);
+                            }
+                        }
+                    }
+                });
     }
 
-    private void setupStationAdapters() {
-        ArrayAdapter<String> stationAdapter = new ArrayAdapter<>(
+    private void setupStationAdapter() {
+        if (!isAdded() || getContext() == null) return;
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
                 requireContext(),
                 android.R.layout.simple_dropdown_item_1line,
                 allStations
         );
-        actvFrom.setAdapter(stationAdapter);
-        actvTo.setAdapter(stationAdapter);
+        actvFrom.setAdapter(adapter);
+        actvTo.setAdapter(adapter);
     }
 
     private void setupTrainAdapter() {
-        ArrayAdapter<String> trainAdapter = new ArrayAdapter<>(
+        if (!isAdded() || getContext() == null) return;
+        actvTrain.setAdapter(new ArrayAdapter<>(
                 requireContext(),
                 android.R.layout.simple_dropdown_item_1line,
                 trainNames
-        );
-        actvTrain.setAdapter(trainAdapter);
+        ));
     }
 
-    private void filterTrainsByStations() {
+    private void filterTrains() {
         String from = actvFrom.getText().toString().trim();
         String to = actvTo.getText().toString().trim();
 
         if (TextUtils.isEmpty(from) || TextUtils.isEmpty(to)) {
-            setupTrainAdapter();
-            tvRoutePreview.setText("");
-            actvMealStation.setText("");
-            actvMealStation.setAdapter(null);
             return;
         }
 
         List<String> filtered = new ArrayList<>();
-        for (Map.Entry<String, List<String>> e : trainRoutes.entrySet()) {
-            List<String> route = e.getValue();
-            if (route.contains(from) && route.contains(to)) {
-                filtered.add(e.getKey());
+        for (String train : trainRoutes.keySet()) {
+            List<String> route = trainRoutes.get(train);
+            if (route == null)
+                continue;
+
+            int fromIndex = route.indexOf(from);
+            int toIndex = route.indexOf(to);
+
+            if (fromIndex != -1 && toIndex != -1 && fromIndex < toIndex) {
+                filtered.add(train);
             }
         }
 
-        ArrayAdapter<String> a = new ArrayAdapter<>(requireContext(),
-                android.R.layout.simple_dropdown_item_1line,
-                filtered);
-        actvTrain.setAdapter(a);
+        if (isAdded() && getContext() != null) {
+            actvTrain.setAdapter(new ArrayAdapter<>(
+                    requireContext(),
+                    android.R.layout.simple_dropdown_item_1line,
+                    filtered
+            ));
+        }
 
-        tvRoutePreview.setText(filtered.size() + " trains found");
+        actvTrain.setText("");
+        actvMealStation.setText("");
+        tvRoutePreview.setText("");
     }
 
-    private void populateMealStationsForTrain(String trainName, String from, String to) {
-        List<String> route = trainRoutes.get(trainName);
-        if (route == null || route.isEmpty()) return;
+    private void showRoute(String train) {
+        List<String> route = trainRoutes.get(train);
+        if (route == null || route.isEmpty())
+            return;
 
-        ArrayAdapter<String> mealAdapter = new ArrayAdapter<>(
-                requireContext(),
-                android.R.layout.simple_dropdown_item_1line,
-                route
-        );
-        actvMealStation.setAdapter(mealAdapter);
-        tvRoutePreview.setText("Route: " + TextUtils.join(" → ", route));
+        String from = actvFrom.getText().toString().trim();
+        String to = actvTo.getText().toString().trim();
+
+        int fromIndex = route.indexOf(from);
+        int toIndex = route.indexOf(to);
+
+        if (fromIndex == -1 || toIndex == -1 || fromIndex > toIndex) {
+            return;
+        }
+
+        List<String> mealStations = new ArrayList<>(route.subList(fromIndex, toIndex + 1));
+
+        if (isAdded() && getContext() != null) {
+            actvMealStation.setAdapter(new ArrayAdapter<>(
+                    requireContext(),
+                    android.R.layout.simple_dropdown_item_1line,
+                    mealStations
+            ));
+        }
+
+        tvRoutePreview.setText("Route: " + TextUtils.join(" → ", mealStations));
     }
 }
 
-
+//
 

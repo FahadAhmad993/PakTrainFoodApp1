@@ -1,10 +1,8 @@
 package com.example.paktrainfoodapp.ui.auth;
 
 import android.os.Bundle;
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
-
 import com.example.paktrainfoodapp.R;
 
 public class AuthActivity extends AppCompatActivity {
@@ -17,15 +15,26 @@ public class AuthActivity extends AppCompatActivity {
         setContentView(R.layout.activity_auth);
 
         if (savedInstanceState == null) {
-            loadFragment(new RoleSelectFragment()); // sabse pehle Role select khulega
+            // Pehle fragment (RoleSelect) ko backstack mein add NAHI karna
+            loadFragment(new RoleSelectFragment(), false);
         }
     }
 
-    public void loadFragment(Fragment fragment) {
-        getSupportFragmentManager()
+    // Humne boolean flag add kiya hai addToBackStack ko
+    public void loadFragment(Fragment fragment, boolean addToBackStack) {
+        androidx.fragment.app.FragmentTransaction transaction = getSupportFragmentManager()
                 .beginTransaction()
-                .replace(R.id.auth_container, fragment)
-                .addToBackStack(null)
-                .commit();
+                .replace(R.id.auth_container, fragment);
+
+        if (addToBackStack) {
+            transaction.addToBackStack(null);
+        }
+
+        transaction.commit();
     }
 }
+
+
+
+
+

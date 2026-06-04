@@ -2,44 +2,67 @@ package com.example.paktrainfoodapp.ui.main.Passenger;
 
 public class PassengerLocationModel {
 
+    private String orderId;
     private String passengerUid;
-    private double passengerLat;
-    private double passengerLng;
+    private String station;
+    private double lat;
+    private double lng;
     private long timestamp;
 
-    public PassengerLocationModel() {
-        // Firestore ke liye empty constructor zaruri hai
-    }
+    // Required empty constructor for Firebase Realtime/Firestore automatic object parsing
+    public PassengerLocationModel() {}
 
-    public PassengerLocationModel(String passengerUid, double passengerLat, double passengerLng, long timestamp) {
+    // Main Constructor
+    public PassengerLocationModel(String orderId, String passengerUid, String station,
+                                  double lat, double lng, long timestamp) {
+        this.orderId = orderId;
         this.passengerUid = passengerUid;
-        this.passengerLat = passengerLat;
-        this.passengerLng = passengerLng;
+        this.station = station;
+        this.lat = lat;
+        this.lng = lng;
         this.timestamp = timestamp;
     }
 
+    // ================= GETTERS & SETTERS =================
+
+    public String getOrderId() {
+        return orderId != null ? orderId : "";
+    }
+
+    public void setOrderId(String orderId) {
+        this.orderId = orderId;
+    }
+
     public String getPassengerUid() {
-        return passengerUid;
+        return passengerUid != null ? passengerUid : "";
     }
 
     public void setPassengerUid(String passengerUid) {
         this.passengerUid = passengerUid;
     }
 
-    public double getPassengerLat() {
-        return passengerLat;
+    public String getStation() {
+        return station != null ? station : "Unknown Station";
     }
 
-    public void setPassengerLat(double passengerLat) {
-        this.passengerLat = passengerLat;
+    public void setStation(String station) {
+        this.station = station;
     }
 
-    public double getPassengerLng() {
-        return passengerLng;
+    public double getLat() {
+        return lat;
     }
 
-    public void setPassengerLng(double passengerLng) {
-        this.passengerLng = passengerLng;
+    public void setLat(double lat) {
+        this.lat = lat;
+    }
+
+    public double getLng() {
+        return lng;
+    }
+
+    public void setLng(double lng) {
+        this.lng = lng;
     }
 
     public long getTimestamp() {
@@ -50,13 +73,29 @@ public class PassengerLocationModel {
         this.timestamp = timestamp;
     }
 
+    // ================= UTILITY HELPER METHODS (For Tracking Screen) =================
+
+    /**
+     * ⚡ FIX: Validation layer taake map loading ke waqt application loop coordinate zero crash se bache
+     */
+    public boolean isValidCoordinates() {
+        return lat != 0.0 && lng != 0.0;
+    }
+
+    /**
+     * Formatted string returns karega delivery map window popups ke liye
+     */
     @Override
     public String toString() {
-        return "PassengerLocationModel{" +
-                "passengerUid='" + passengerUid + '\'' +
-                ", passengerLat=" + passengerLat +
-                ", passengerLng=" + passengerLng +
-                ", timestamp=" + timestamp +
+        return "PassengerLocation{" +
+                "orderId='" + orderId + '\'' +
+                ", station='" + station + '\'' +
+                ", lat=" + lat +
+                ", lng=" + lng +
                 '}';
     }
 }
+
+
+//
+

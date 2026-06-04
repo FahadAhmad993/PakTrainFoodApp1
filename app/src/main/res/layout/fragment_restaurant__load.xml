@@ -23,7 +23,7 @@
         android:background="@color/white"
         android:padding="4dp">
 
-        <!-- Menu Button -->
+        <!-- HOme Button -->
         <LinearLayout
             android:id="@+id/btn_menu"
             android:orientation="vertical"
@@ -116,7 +116,7 @@
                 android:textColor="@color/gray"/>
         </LinearLayout>
 
-        <!-- Profile -->
+
         <LinearLayout
             android:id="@+id/btn_profile"
             android:orientation="vertical"

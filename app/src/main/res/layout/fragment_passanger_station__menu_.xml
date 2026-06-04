@@ -4,7 +4,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F8F8F8">
+    android:background="@android:color/white"
+    android:clickable="true"
+    android:focusable="true">
 
     <!-- 🔹 TOP BAR -->
     <LinearLayout
@@ -15,14 +17,6 @@
         android:padding="12dp"
         android:background="@color/teal_700">
 
-        <ImageButton
-            android:id="@+id/btnBack"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@null"
-            android:src="@drawable/ic_swap"
-            android:contentDescription="Back"
-            app:tint="@android:color/white" />
 
         <TextView
             android:id="@+id/txtCity"
@@ -101,6 +95,7 @@
         android:layout_weight="1"
         android:padding="8dp" />
 
+
     <!-- 🔹 PROGRESS BAR -->
     <ProgressBar
         android:id="@+id/progressBar"
@@ -109,6 +104,30 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
+    <LinearLayout
+        android:id="@+id/layout_floating_cart"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:background="@color/green"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <TextView android:id="@+id/txt_cart_info"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="0 Items"
+            android:textColor="#FFFFFF" />
+
+        <Button android:id="@+id/btn_view_cart"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="View Cart" />
+    </LinearLayout>
+    <include layout="@layout/layout_cart_bar"/>
 </LinearLayout>
 
 
@@ -116,48 +135,16 @@
 
 
 
-    <!--<?xml version="1.0" encoding="utf-8"?>-->
-<!--<LinearLayout-->
-<!--    xmlns:android="http://schemas.android.com/apk/res/android"-->
-<!--    xmlns:tools="http://schemas.android.com/tools"-->
-<!--    android:orientation="vertical"-->
-<!--    android:layout_width="match_parent"-->
-<!--    android:layout_height="match_parent"-->
-<!--    android:padding="12dp"-->
-<!--    android:background="@color/white"-->
-<!--    tools:context=".ui.main.Passenger.Station_Menu_Fragment">-->
 
-<!--    &lt;!&ndash; 🔹 City name heading &ndash;&gt;-->
-<!--    <TextView-->
-<!--        android:id="@+id/txtCity"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:text="City: -&#45;&#45;"-->
-<!--        android:textSize="20sp"-->
-<!--        android:textStyle="bold"-->
-<!--        android:textColor="@android:color/black"-->
-<!--        android:gravity="center"-->
-<!--        android:layout_marginBottom="8dp" />-->
 
-<!--    &lt;!&ndash; 🔹 Progress Bar &ndash;&gt;-->
-<!--    <ProgressBar-->
-<!--        android:id="@+id/progressBar"-->
-<!--        style="?android:attr/progressBarStyleLarge"-->
-<!--        android:layout_width="wrap_content"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:layout_gravity="center"-->
-<!--        android:layout_margin="10dp"-->
-<!--        android:visibility="gone" />-->
 
-<!--    &lt;!&ndash; 🔹 Recycler View &ndash;&gt;-->
-<!--    <androidx.recyclerview.widget.RecyclerView-->
-<!--        android:id="@+id/recyclerMenu"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="match_parent"-->
-<!--        android:scrollbars="vertical"-->
-<!--        android:clipToPadding="false"-->
-<!--        android:paddingBottom="8dp"/>-->
-<!--</LinearLayout>-->
+
+
+
+
+
+
+
 
 
 

@@ -1,8 +1,5 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -12,6 +9,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.example.paktrainfoodapp.R;
 
 import java.util.ArrayList;
@@ -22,7 +20,7 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RestaurantAdapter.Vi
     private List<RestaurantModel> list;
     private OnItemClickListener listener;
 
-    // Interface for click events (like favorite)
+    // Interface for click events (like favorite and navigation triggers)
     public interface OnItemClickListener {
         void onFavoriteClick(int position);
         void onItemClick(int position);
@@ -51,28 +49,23 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RestaurantAdapter.Vi
         holder.tvName.setText(model.getRestaurantName());
         holder.tvInfo.setText(model.getCity());
 
-        // Base64 image decode safely
-        if (model.getImageBase64() != null && !model.getImageBase64().isEmpty()) {
-            try {
-                byte[] decodedBytes = Base64.decode(model.getImageBase64(), Base64.DEFAULT);
-                Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-                holder.imgRestaurant.setImageBitmap(bitmap);
-            } catch (Exception e) {
-                e.printStackTrace();
-                holder.imgRestaurant.setImageResource(R.drawable.station3); // fallback image
-            }
-        } else {
-            holder.imgRestaurant.setImageResource(R.drawable.station3); // default image
-        }
+        // ⚡ FIXED: Dropped local bitmap rendering loops in favor of asynchronous cloud stream engine (Glide)
+        String imageUrl = model.getImageUrl(); // Resolves through our safe dynamic fallback getter layer
 
+        Glide.with(holder.itemView.getContext())
+                .load(imageUrl)
+                .placeholder(R.drawable.station3) // Standard temporary vector template asset
+                .error(R.drawable.station3)       // Fallback system asset mapping on processing drops
+                .centerCrop()                     // Image stretch parameters balanced smoothly inside layout item
+                .into(holder.imgRestaurant);
     }
 
     @Override
     public int getItemCount() {
-        return list.size();
+        return list != null ? list.size() : 0;
     }
 
-    // ViewHolder class
+    // ViewHolder class with localized memory references
     public static class ViewHolder extends RecyclerView.ViewHolder {
 
         ImageView imgRestaurant, btnFavorite;
@@ -88,17 +81,20 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RestaurantAdapter.Vi
             tvRating = itemView.findViewById(R.id.tv_rating);
             tvAd = itemView.findViewById(R.id.tv_ad);
 
-            // Favorite click
-            btnFavorite.setOnClickListener(v -> {
-                if (listener != null) {
-                    int position = getAdapterPosition();
-                    if (position != RecyclerView.NO_POSITION) {
-                        listener.onFavoriteClick(position);
+            // Favorite click event handler
+            if (btnFavorite != null) {
+                btnFavorite.setOnClickListener(v -> {
+                    if (listener != null) {
+                        int position = getAdapterPosition();
+                        // Guard clause ensures click indices never fire during animation frames shifts
+                        if (position != RecyclerView.NO_POSITION) {
+                            listener.onFavoriteClick(position);
+                        }
                     }
-                }
-            });
+                });
+            }
 
-            // Whole item click
+            // Whole restaurant item layout routing event handler
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
                     int position = getAdapterPosition();
@@ -114,79 +110,4 @@ public class RestaurantAdapter extends RecyclerView.Adapter<RestaurantAdapter.Vi
 
 
 
-
-
-
-//package com.example.paktrainfoodapp.ui.main.Passenger;
 //
-//import android.graphics.Bitmap;
-//import android.graphics.BitmapFactory;
-//import android.util.Base64;
-//import android.view.LayoutInflater;
-//import android.view.View;
-//import android.view.ViewGroup;
-//import android.widget.ImageView;
-//import android.widget.TextView;
-//
-//import androidx.annotation.NonNull;
-//import androidx.recyclerview.widget.RecyclerView;
-//
-//import com.example.paktrainfoodapp.ui.main.Passenger.RestaurantModel;
-//import com.example.paktrainfoodapp.R;
-//
-//import java.util.ArrayList;
-//import java.util.List;
-//
-//public class RestaurantAdapter extends RecyclerView.Adapter<RestaurantAdapter.ViewHolder> {
-//
-//    List<RestaurantModel> list;
-//
-//    public RestaurantAdapter(ArrayList<com.example.paktrainfoodapp.ui.main.Passenger.RestaurantModel> list) {
-//        this.list = list;
-//    }
-//
-//    @NonNull
-//    @Override
-//    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-//        View view = LayoutInflater.from(parent.getContext())
-//                .inflate(R.layout.passanger_resturent_layout, parent, false);  // your first XML card
-//        return new ViewHolder(view);
-//    }
-//
-//    @Override
-//    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-//
-//        RestaurantModel model = list.get(position);
-//
-//        holder.tvName.setText(model.getRestaurantName());
-//        holder.tvInfo.setText(model.getCity());
-//
-//        // Base64 image decode
-//        if (model.getImageBase64() != null) {
-//            try {
-//                byte[] bytes = Base64.decode(model.getImageBase64(), Base64.DEFAULT);
-//                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-//                holder.imgRestaurant.setImageBitmap(bitmap);
-//            } catch (Exception e) { e.printStackTrace(); }
-//        }
-//    }
-//
-//    @Override
-//    public int getItemCount() {
-//        return list.size();
-//    }
-//
-//    public class ViewHolder extends RecyclerView.ViewHolder {
-//
-//        ImageView imgRestaurant;
-//        TextView tvName, tvInfo;
-//
-//        public ViewHolder(@NonNull View itemView) {
-//            super(itemView);
-//
-//            imgRestaurant = itemView.findViewById(R.id.img_restaurant);
-//            tvName = itemView.findViewById(R.id.tv_restaurant_name);
-//            tvInfo = itemView.findViewById(R.id.tv_restaurant_info);
-//        }
-//    }
-//}

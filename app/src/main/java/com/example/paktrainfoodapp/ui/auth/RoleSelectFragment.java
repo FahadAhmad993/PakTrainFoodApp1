@@ -32,38 +32,25 @@ public class RoleSelectFragment extends Fragment {
         cardDelivery = view.findViewById(R.id.card_delivery);
 
         // Click Listeners
-        cardPassenger.setOnClickListener(v -> openRegister("PASSENGER"));
-        cardRestaurant.setOnClickListener(v -> openRegister("RESTAURANT"));
-        cardDelivery.setOnClickListener(v -> openRegister("DELIVERY"));
+        cardPassenger.setOnClickListener(v -> openLoginWithRole("PASSENGER"));
+        cardRestaurant.setOnClickListener(v -> openLoginWithRole("RESTAURANT"));
+        cardDelivery.setOnClickListener(v -> openLoginWithRole("DELIVERY"));
     }
 
-    private void openRegister(String role) {
+    private void openLoginWithRole(String role) {
         Bundle bundle = new Bundle();
         bundle.putString(AuthActivity.USER_ROLE_KEY, role);
 
-        Fragment fragment;
+        // Kyunki teeno cases mein LoginFragment hi khulna hai, switch ki zaroorat ni
+        LoginFragment loginFragment = new LoginFragment();
+        loginFragment.setArguments(bundle);
 
-        switch (role) {
-            case "PASSENGER":
-                fragment = new LoginFragment();
-                break;
-            case "RESTAURANT":
-                fragment = new LoginFragment();
-                break;
-            case "DELIVERY":
-                fragment = new LoginFragment();
-                break;
-            default:
-                fragment = new LoginFragment();
+        // Naye loadFragment method ke mutabiq 'true' pass kiya taake ye backstack mein jaye
+        if (getActivity() instanceof AuthActivity) {
+            ((AuthActivity) getActivity()).loadFragment(loginFragment, true);
         }
-
-        fragment.setArguments(bundle);
-        ((AuthActivity) requireActivity()).loadFragment(fragment);
     }
 }
-
-
-
 
 
 

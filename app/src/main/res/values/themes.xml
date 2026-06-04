@@ -1,11 +1,19 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
     <style name="Base.Theme.PakTrainFoodApp" parent="Theme.Material3.DayNight.NoActionBar">
-       
 
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="colorPrimary">@color/teal_700</item>
+
+        <!-- Status bar ko transparent karne ke liye -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+
+        <!-- Status bar ke icons (time/battery) ko visible rakhne ke liye -->
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
     <style name="Theme.PakTrainFoodApp" parent="Base.Theme.PakTrainFoodApp" />
 </resources>
+
+
+
+
+

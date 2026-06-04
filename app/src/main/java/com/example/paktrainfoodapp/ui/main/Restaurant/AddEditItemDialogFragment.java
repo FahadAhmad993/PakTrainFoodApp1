@@ -1,47 +1,47 @@
 package com.example.paktrainfoodapp.ui.main.Restaurant;
 
-import android.app.Dialog;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
-import android.os.Bundle;
+import android.os.*;
 import android.provider.MediaStore;
-import android.text.TextUtils;
 import android.util.Base64;
 import android.view.*;
 import android.widget.*;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import androidx.annotation.*;
 import androidx.fragment.app.DialogFragment;
 import com.bumptech.glide.Glide;
 import com.example.paktrainfoodapp.R;
 import com.example.paktrainfoodapp.utils.PrefManager;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.firestore.FirebaseFirestore;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import org.json.JSONObject;
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class AddEditItemDialogFragment extends DialogFragment {
 
-    public interface Listener {
-        void onSaved();
-    }
+    public interface Listener { void onSaved(); }
 
     private String restId;
     private MenuItem editingItem;
     private Listener listener;
 
-    private TextInputEditText etName, etDesc, etPrice, etTime, etCategory;
+    private TextInputEditText etName, etDesc, etTime, etCategory;
+    private LinearLayout layoutVariationsContainer;
     private ImageView ivImage;
-    private Button btnChooseImage, btnSave;
+    private Button btnSave, btnCancel;
+    private ProgressBar progressBar;
     private Uri imageUri;
-    private String base64Image;
 
-    private FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private static final String IMGBB_API_KEY = "48a067c9d290ecbca102dca44184ae22";
+    private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private ActivityResultLauncher<String> imagePickerLauncher;
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     public static AddEditItemDialogFragment newInstance(String restId, MenuItem item, Listener listener) {
         AddEditItemDialogFragment f = new AddEditItemDialogFragment();
@@ -55,471 +55,158 @@ public class AddEditItemDialogFragment extends DialogFragment {
     public void onStart() {
         super.onStart();
         if (getDialog() != null && getDialog().getWindow() != null) {
-            int width = (int) (requireContext().getResources().getDisplayMetrics().widthPixels * 0.9);
-            getDialog().getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
+            Window window = getDialog().getWindow();
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setBackgroundDrawableResource(android.R.color.transparent);
         }
-    }
-
-    @NonNull
-    @Override
-    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
-        Dialog d = super.onCreateDialog(savedInstanceState);
-        d.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        return d;
     }
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater,
-                             @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_restaurant_add_edit_item_dialog, container, false);
 
         etName = v.findViewById(R.id.et_item_name);
         etDesc = v.findViewById(R.id.et_item_desc);
-        etPrice = v.findViewById(R.id.et_item_price);
         etTime = v.findViewById(R.id.et_item_time);
         etCategory = v.findViewById(R.id.et_item_category);
+        layoutVariationsContainer = v.findViewById(R.id.layout_variations_container);
         ivImage = v.findViewById(R.id.imgPreview);
-        btnChooseImage = v.findViewById(R.id.btnChooseImage);
         btnSave = v.findViewById(R.id.btn_save_item);
+        btnCancel = v.findViewById(R.id.btn_cancel_item);
+        progressBar = v.findViewById(R.id.progress_Bar);
 
-        imagePickerLauncher = registerForActivityResult(
-                new ActivityResultContracts.GetContent(),
-                uri -> {
-                    if (uri != null) {
-                        imageUri = uri;
-                        Glide.with(this).load(uri).into(ivImage);
-                    }
-                }
-        );
+        v.findViewById(R.id.btnChooseImage).setOnClickListener(v1 -> imagePickerLauncher.launch("image/*"));
+        v.findViewById(R.id.btn_add_variation).setOnClickListener(v1 -> addVariationRow(null, null));
+        btnSave.setOnClickListener(v1 -> onSaveClicked());
+        btnCancel.setOnClickListener(v1 -> dismiss());
 
-        btnChooseImage.setOnClickListener(v1 -> imagePickerLauncher.launch("image/*"));
+        imagePickerLauncher = registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+            if (uri != null) { imageUri = uri; Glide.with(this).load(uri).into(ivImage); }
+        });
 
         if (editingItem != null) {
             etName.setText(editingItem.getName());
             etDesc.setText(editingItem.getDescription());
-            etPrice.setText(String.valueOf(editingItem.getPrice()));
             etTime.setText(editingItem.getTime());
             etCategory.setText(editingItem.getCategory());
+            Glide.with(this).load(editingItem.getImageUrl()).into(ivImage);
 
-            if (!TextUtils.isEmpty(editingItem.getImageUrl())) {
-                try {
-                    byte[] decodedBytes = Base64.decode(editingItem.getImageUrl(), Base64.DEFAULT);
-                    Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-                    ivImage.setImageBitmap(bitmap);
-                } catch (Exception e) {
-                    e.printStackTrace();
+            if (editingItem.getVariations() != null) {
+                for (Map.Entry<String, Double> entry : editingItem.getVariations().entrySet()) {
+                    addVariationRow(entry.getKey(), String.valueOf(entry.getValue()));
                 }
             }
         }
-
-        btnSave.setOnClickListener(v12 -> onSaveClicked());
         return v;
     }
 
-    private Bitmap resizeBitmap(Bitmap original) {
-        int width = original.getWidth();
-        int height = original.getHeight();
-        int maxSize = 512;
-
-        if (width <= maxSize && height <= maxSize) return original;
-
-        float ratio = (float) width / height;
-        if (ratio > 1) {
-            width = maxSize;
-            height = (int) (maxSize / ratio);
-        } else {
-            height = maxSize;
-            width = (int) (maxSize * ratio);
-        }
-        return Bitmap.createScaledBitmap(original, width, height, true);
-    }
-
-    private String convertImageToBase64(Uri imageUri) {
-        try {
-            Bitmap bitmap = MediaStore.Images.Media.getBitmap(requireContext().getContentResolver(), imageUri);
-            bitmap = resizeBitmap(bitmap);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
-            byte[] imageBytes = baos.toByteArray();
-            return Base64.encodeToString(imageBytes, Base64.DEFAULT);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
+    private void addVariationRow(String name, String price) {
+        View rowView = getLayoutInflater().inflate(R.layout.item_variation_row, null);
+        if (name != null) ((EditText) rowView.findViewById(R.id.et_var_name)).setText(name);
+        if (price != null) ((EditText) rowView.findViewById(R.id.et_var_price)).setText(price);
+        rowView.findViewById(R.id.btn_remove_variation).setOnClickListener(v -> layoutVariationsContainer.removeView(rowView));
+        layoutVariationsContainer.addView(rowView);
     }
 
     private void onSaveClicked() {
-        String name = etName.getText() != null ? etName.getText().toString().trim() : "";
-        String desc = etDesc.getText() != null ? etDesc.getText().toString().trim() : "";
-        String priceStr = etPrice.getText() != null ? etPrice.getText().toString().trim() : "";
-        String time = etTime.getText() != null ? etTime.getText().toString().trim() : "";
-        String category = etCategory.getText() != null ? etCategory.getText().toString().trim() : "";
+        String name = etName.getText().toString().trim();
+        Map<String, Double> variations = new HashMap<>();
 
-        if (TextUtils.isEmpty(name) || TextUtils.isEmpty(priceStr)) {
-            Toast.makeText(getContext(), "Name and price are required", Toast.LENGTH_SHORT).show();
+        for (int i = 0; i < layoutVariationsContainer.getChildCount(); i++) {
+            View row = layoutVariationsContainer.getChildAt(i);
+            String n = ((EditText) row.findViewById(R.id.et_var_name)).getText().toString();
+            String p = ((EditText) row.findViewById(R.id.et_var_price)).getText().toString();
+            if (!n.isEmpty() && !p.isEmpty()) variations.put(n, Double.parseDouble(p));
+        }
+
+        if (name.isEmpty() || variations.isEmpty()) {
+            Toast.makeText(getContext(), "Name and at least one variation required", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        double price;
+        processAndSaveItem(name, etDesc.getText().toString(), etTime.getText().toString(), etCategory.getText().toString(), variations);
+    }
+
+    private void processAndSaveItem(String name, String desc, String time, String cat, Map<String, Double> vars) {
+        progressBar.setVisibility(View.VISIBLE);
+        executorService.execute(() -> {
+            String imageUrl = (editingItem != null && imageUri == null) ? editingItem.getImageUrl() : uploadImage();
+            mainHandler.post(() -> {
+                if (imageUrl == null && imageUri != null) {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(getContext(), "Image Upload Failed", Toast.LENGTH_SHORT).show();
+                } else {
+                    saveToFirestore(name, desc, time, cat, vars, imageUrl);
+                }
+            });
+        });
+    }
+
+    private String uploadImage() {
         try {
-            price = Double.parseDouble(priceStr);
-        } catch (NumberFormatException e) {
-            Toast.makeText(getContext(), "Invalid price format", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (editingItem != null && imageUri == null) {
-            base64Image = editingItem.getImageUrl();
-        } else {
-            if (imageUri == null) {
-                Toast.makeText(getContext(), "Please select an image", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            base64Image = convertImageToBase64(imageUri);
-            if (base64Image == null) {
-                Toast.makeText(getContext(), "Failed to convert image", Toast.LENGTH_SHORT).show();
-                return;
-            }
-        }
-
-        fetchRestaurantAndSave(name, desc, price, time, category, base64Image);
+            Bitmap bitmap = MediaStore.Images.Media.getBitmap(requireContext().getContentResolver(), imageUri);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 60, baos);
+            String base64 = Base64.encodeToString(baos.toByteArray(), Base64.DEFAULT);
+            URL url = new URL("https://api.imgbb.com/1/upload?key=" + IMGBB_API_KEY);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.getOutputStream().write(("image=" + URLEncoder.encode(base64, "UTF-8")).getBytes());
+            JSONObject json = new JSONObject(new Scanner(conn.getInputStream()).useDelimiter("\\A").next());
+            return json.getJSONObject("data").getString("url");
+        } catch (Exception e) { return null; }
     }
 
-    private void fetchRestaurantAndSave(String name, String desc, double price, String time, String category, String imageBase64) {
-        PrefManager prefManager = new PrefManager(requireContext());
-        var ref = new Object() {
-            final String[] restaurantCity = {prefManager.getUserCity()};
-        };
+    private void saveToFirestore(String name, String desc, String time, String cat, Map<String, Double> vars, String url) {
+        PrefManager pref = new PrefManager(requireContext());
+        db.collection("Users").document("Restaurant").collection("VerifiedRegister").document(restId)
+                .get().addOnSuccessListener(doc -> {
+                    String restName = doc.getString("restaurantName");
+                    String city = doc.getString("city");
+                    if (pref.getUserCity() != null && !pref.getUserCity().isEmpty()) city = pref.getUserCity();
 
-        db.collection("Users")
-                .document("Restaurant")
-                .collection("VerifiedRegister")
-                .document(restId)
-                .get()
-                .addOnSuccessListener(doc -> {
-                    if (doc.exists()) {
-                        String restaurantName = doc.getString("restaurantName");
-                        if (ref.restaurantCity[0] == null || ref.restaurantCity[0].isEmpty()) {
-                            ref.restaurantCity[0] = doc.getString("city");
-                        }
+                    // ✅ UPDATED: Naye Constructor ke mutabiq object banaya gaya
+                    MenuItem item = new MenuItem(
+                            name,
+                            desc,
+                            url,
+                            vars, // Map pass kiya
+                            time,
+                            cat,
+                            restId,
+                            restName,
+                            city
+                    );
 
-                        MenuItem item = new MenuItem(name, desc, imageBase64, price, time, category,
-                                restId, restaurantName, ref.restaurantCity[0]);
-
-                        saveMenuItem(item);
-
-                    } else {
-                        Toast.makeText(getContext(), "Restaurant not found", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(e ->
-                        Toast.makeText(getContext(), "Failed to get restaurant info: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    if (editingItem != null) item.setId(editingItem.getId());
+                    saveToCollection(item);
+                });
     }
 
-    // ✅ Save under: Users → Restaurant → VerifiedRegister → {restaurantId} → MenuItems
-    private void saveMenuItem(MenuItem item) {
+    private void saveToCollection(MenuItem item) {
+        var docRef = db.collection("Users").document("Restaurant")
+                .collection("VerifiedRegister").document(restId).collection("MenuItems");
+
         if (editingItem != null) {
-            String id = editingItem.getId();
-            item.setId(id);
-            db.collection("Users")
-                    .document("Restaurant")
-                    .collection("VerifiedRegister")
-                    .document(restId)
-                    .collection("MenuItems")
-                    .document(id)
-                    .set(item)
-                    .addOnSuccessListener(a -> {
-                        if (listener != null) listener.onSaved();
-                        dismiss();
-                    })
-                    .addOnFailureListener(e ->
-                            Toast.makeText(getContext(), "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            // Update existing
+            docRef.document(item.getId()).set(item).addOnSuccessListener(a -> finishSave());
         } else {
-            db.collection("Users")
-                    .document("Restaurant")
-                    .collection("VerifiedRegister")
-                    .document(restId)
-                    .collection("MenuItems")
-                    .add(item)
-                    .addOnSuccessListener(ref -> {
-                        String id = ref.getId();
-                        ref.update("id", id);
-                        item.setId(id);
-                        if (listener != null) listener.onSaved();
-                        dismiss();
-                    })
-                    .addOnFailureListener(e ->
-                            Toast.makeText(getContext(), "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            // Add new
+            docRef.add(item).addOnSuccessListener(ref -> {
+                item.setId(ref.getId()); // ID set karna
+                ref.set(item).addOnSuccessListener(a -> finishSave()); // ID update ke sath final save
+            });
         }
+    }
+
+    private void finishSave() {
+        progressBar.setVisibility(View.GONE);
+        if (listener != null) listener.onSaved();
+        dismiss();
     }
 }
+//
 
 
-
-
-
-
-//package com.example.paktrainfoodapp.ui.main.Restaurant;
-//
-//import android.app.Dialog;
-//import android.graphics.Bitmap;
-//import android.graphics.BitmapFactory;
-//import android.net.Uri;
-//import android.os.Bundle;
-//import android.provider.MediaStore;
-//import android.text.TextUtils;
-//import android.util.Base64;
-//import android.view.*;
-//import android.widget.*;
-//import androidx.activity.result.ActivityResultLauncher;
-//import androidx.activity.result.contract.ActivityResultContracts;
-//import androidx.annotation.NonNull;
-//import androidx.annotation.Nullable;
-//import androidx.fragment.app.DialogFragment;
-//import com.bumptech.glide.Glide;
-//import com.example.paktrainfoodapp.R;
-//import com.example.paktrainfoodapp.utils.PrefManager;
-//import com.google.android.material.textfield.TextInputEditText;
-//import com.google.firebase.firestore.FirebaseFirestore;
-//
-//import java.io.ByteArrayOutputStream;
-//import java.io.IOException;
-//
-//public class AddEditItemDialogFragment extends DialogFragment {
-//
-//    public interface Listener {
-//        void onSaved();
-//    }
-//
-//    private String restId;
-//    private MenuItem editingItem;
-//    private Listener listener;
-//
-//    private TextInputEditText etName, etDesc, etPrice, etTime, etCategory;
-//    private ImageView ivImage;
-//    private Button btnChooseImage, btnSave;
-//    private Uri imageUri;
-//    private String base64Image;
-//
-//    private FirebaseFirestore db = FirebaseFirestore.getInstance();
-//    private ActivityResultLauncher<String> imagePickerLauncher;
-//
-//    // --------------------------- FACTORY METHOD ---------------------------
-//    public static AddEditItemDialogFragment newInstance(String restId, MenuItem item, Listener listener) {
-//        AddEditItemDialogFragment f = new AddEditItemDialogFragment();
-//        f.restId = restId;
-//        f.editingItem = item;
-//        f.listener = listener;
-//        return f;
-//    }
-//
-//    // --------------------------- DIALOG WIDTH ---------------------------
-//    @Override
-//    public void onStart() {
-//        super.onStart();
-//        if (getDialog() != null && getDialog().getWindow() != null) {
-//            int width = (int) (requireContext().getResources().getDisplayMetrics().widthPixels * 0.9);
-//            getDialog().getWindow().setLayout(width, ViewGroup.LayoutParams.WRAP_CONTENT);
-//        }
-//    }
-//
-//    // --------------------------- REMOVE TITLE ---------------------------
-//    @NonNull
-//    @Override
-//    public Dialog onCreateDialog(@Nullable Bundle savedInstanceState) {
-//        Dialog d = super.onCreateDialog(savedInstanceState);
-//        d.requestWindowFeature(Window.FEATURE_NO_TITLE);
-//        return d;
-//    }
-//
-//    // --------------------------- MAIN VIEW ---------------------------
-//    @Nullable
-//    @Override
-//    public View onCreateView(@NonNull LayoutInflater inflater,
-//                             @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-//
-//        View v = inflater.inflate(R.layout.fragment_restaurant_add_edit_item_dialog, container, false);
-//
-//        etName = v.findViewById(R.id.et_item_name);
-//        etDesc = v.findViewById(R.id.et_item_desc);
-//        etPrice = v.findViewById(R.id.et_item_price);
-//        etTime = v.findViewById(R.id.et_item_time);
-//        etCategory = v.findViewById(R.id.et_item_category);
-//        ivImage = v.findViewById(R.id.imgPreview);
-//        btnChooseImage = v.findViewById(R.id.btnChooseImage);
-//        btnSave = v.findViewById(R.id.btn_save_item);
-//
-//        // --------------------------- IMAGE PICKER ---------------------------
-//        imagePickerLauncher = registerForActivityResult(
-//                new ActivityResultContracts.GetContent(),
-//                uri -> {
-//                    if (uri != null) {
-//                        imageUri = uri;
-//                        Glide.with(this).load(uri).into(ivImage);
-//                    }
-//                }
-//        );
-//
-//        btnChooseImage.setOnClickListener(v1 -> imagePickerLauncher.launch("image/*"));
-//
-//        // --------------------------- LOAD EXISTING DATA ---------------------------
-//        if (editingItem != null) {
-//            etName.setText(editingItem.getName());
-//            etDesc.setText(editingItem.getDescription());
-//            etPrice.setText(String.valueOf(editingItem.getPrice()));
-//            etTime.setText(editingItem.getTime());
-//            etCategory.setText(editingItem.getCategory());
-//
-//            if (!TextUtils.isEmpty(editingItem.getImageUrl())) {
-//                try {
-//                    byte[] decodedBytes = Base64.decode(editingItem.getImageUrl(), Base64.DEFAULT);
-//                    Bitmap bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.length);
-//                    ivImage.setImageBitmap(bitmap);
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        }
-//
-//        btnSave.setOnClickListener(v12 -> onSaveClicked());
-//        return v;
-//    }
-//
-//    // --------------------------- RESIZE BITMAP ---------------------------
-//    private Bitmap resizeBitmap(Bitmap original) {
-//        int width = original.getWidth();
-//        int height = original.getHeight();
-//        int maxSize = 512;
-//
-//        if (width <= maxSize && height <= maxSize) return original;
-//
-//        float ratio = (float) width / height;
-//        if (ratio > 1) {
-//            width = maxSize;
-//            height = (int) (maxSize / ratio);
-//        } else {
-//            height = maxSize;
-//            width = (int) (maxSize * ratio);
-//        }
-//        return Bitmap.createScaledBitmap(original, width, height, true);
-//    }
-//
-//    // --------------------------- CONVERT TO BASE64 ---------------------------
-//    private String convertImageToBase64(Uri imageUri) {
-//        try {
-//            Bitmap bitmap = MediaStore.Images.Media.getBitmap(requireContext().getContentResolver(), imageUri);
-//            bitmap = resizeBitmap(bitmap);
-//            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//            bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
-//            byte[] imageBytes = baos.toByteArray();
-//            return Base64.encodeToString(imageBytes, Base64.DEFAULT);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            return null;
-//        }
-//    }
-//
-//    // --------------------------- SAVE BUTTON ---------------------------
-//    private void onSaveClicked() {
-//        String name = etName.getText() != null ? etName.getText().toString().trim() : "";
-//        String desc = etDesc.getText() != null ? etDesc.getText().toString().trim() : "";
-//        String priceStr = etPrice.getText() != null ? etPrice.getText().toString().trim() : "";
-//        String time = etTime.getText() != null ? etTime.getText().toString().trim() : "";
-//        String category = etCategory.getText() != null ? etCategory.getText().toString().trim() : "";
-//
-//        if (TextUtils.isEmpty(name) || TextUtils.isEmpty(priceStr)) {
-//            Toast.makeText(getContext(), "Name and price are required", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//
-//        double price;
-//        try {
-//            price = Double.parseDouble(priceStr);
-//        } catch (NumberFormatException e) {
-//            Toast.makeText(getContext(), "Invalid price format", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//
-//        if (editingItem != null && imageUri == null) {
-//            base64Image = editingItem.getImageUrl();
-//        } else {
-//            if (imageUri == null) {
-//                Toast.makeText(getContext(), "Please select an image", Toast.LENGTH_SHORT).show();
-//                return;
-//            }
-//            base64Image = convertImageToBase64(imageUri);
-//            if (base64Image == null) {
-//                Toast.makeText(getContext(), "Failed to convert image", Toast.LENGTH_SHORT).show();
-//                return;
-//            }
-//        }
-//
-//        fetchRestaurantAndSave(name, desc, price, time, category, base64Image);
-//    }
-//
-//    // --------------------------- FETCH RESTAURANT DATA ---------------------------
-//    private void fetchRestaurantAndSave(String name, String desc, double price, String time, String category, String imageBase64) {
-//        PrefManager prefManager = new PrefManager(requireContext());
-//        var ref = new Object() {
-//            final String[] restaurantCity = {prefManager.getUserCity()};
-//        };
-//
-//        db.collection("Users")
-//                .document("Restaurant")
-//                .collection("VerifiedRegister")
-//                .document(restId)
-//                .get()
-//                .addOnSuccessListener(doc -> {
-//                    if (doc.exists()) {
-//                        String restaurantName = doc.getString("restaurantName");
-//                        if (ref.restaurantCity[0] == null || ref.restaurantCity[0].isEmpty()) {
-//                            ref.restaurantCity[0] = doc.getString("city");
-//                        }
-//
-//                        MenuItem item = new MenuItem(name, desc, imageBase64, price, time, category,
-//                                restId, restaurantName, ref.restaurantCity[0]);
-//
-//                        saveMenuItem(item);
-//
-//                    } else {
-//                        Toast.makeText(getContext(), "Restaurant not found", Toast.LENGTH_SHORT).show();
-//                    }
-//                })
-//                .addOnFailureListener(e ->
-//                        Toast.makeText(getContext(), "Failed to get restaurant info: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-//    }
-//
-//    // --------------------------- SAVE MENU ITEM ---------------------------
-//    private void saveMenuItem(MenuItem item) {
-//        if (editingItem != null) {
-//            String id = editingItem.getId();
-//            item.setId(id);
-//            db.collection("Users")
-//                    .document("Restaurant")
-//                    .collection("MenuItems")
-//                    .document(id)
-//                    .set(item)
-//                    .addOnSuccessListener(a -> {
-//                        if (listener != null) listener.onSaved();
-//                        dismiss();
-//                    })
-//                    .addOnFailureListener(e -> Toast.makeText(getContext(), "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-//        } else {
-//            db.collection("Users")
-//                    .document("Restaurant")
-//                    .collection("MenuItems")
-//                    .add(item)
-//                    .addOnSuccessListener(ref -> {
-//                        String id = ref.getId();
-//                        ref.update("id", id);
-//                        item.setId(id);
-//                        if (listener != null) listener.onSaved();
-//                        dismiss();
-//                    })
-//                    .addOnFailureListener(e -> Toast.makeText(getContext(), "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show());
-//        }
-//    }
-//}
-//
