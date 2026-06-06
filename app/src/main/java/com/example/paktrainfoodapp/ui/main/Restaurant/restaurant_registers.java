@@ -225,6 +225,7 @@ public class restaurant_registers extends Fragment {
                     progressDialog.dismiss();
                     Toast.makeText(getContext(), "License upload failed: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                 }) {
+            @NonNull
             @Override
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<>();
@@ -299,9 +300,9 @@ public class restaurant_registers extends Fragment {
         restaurant.put("email", email);
         restaurant.put("phone", phone);
         restaurant.put("role", "RESTAURANT");
-        restaurant.put("isVerified", true);
+        restaurant.put("isVerified", false);
 
-        // 🔥 Strings ke bajaye short, lightweight web URLs firestore me ja rahe hain!
+        // Online image URLs from ImgBB
         restaurant.put("licenseImageUrl", licenseUrl);
         restaurant.put("ownerCnicImageUrl", cnicUrl);
 
@@ -313,18 +314,16 @@ public class restaurant_registers extends Fragment {
                 .addOnSuccessListener(unused -> {
                     progressDialog.dismiss();
                     prefManager.setRegistered(true, email);
-                    prefManager.setIsRestaurantVerified(true);
+                    prefManager.setIsRestaurantVerified(false);
                     prefManager.setUserCity(city);
-                    Toast.makeText(getContext(), "Restaurant Registered & Verified Successfully", Toast.LENGTH_SHORT).show();
+
+                    Toast.makeText(getContext(), "Application Submitted! Waiting for Admin Approval.", Toast.LENGTH_LONG).show();
 
                     new Handler(Looper.getMainLooper()).postDelayed(() -> {
                         if (isAdded()) {
-                            Intent intent = new Intent(getActivity(), MainActivity.class);
-                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                            startActivity(intent);
-                            requireActivity().finish();
+                            performSignOutAndGoBack();
                         }
-                    }, 300);
+                    }, 1500);
                 })
                 .addOnFailureListener(e -> {
                     progressDialog.dismiss();
@@ -332,10 +331,8 @@ public class restaurant_registers extends Fragment {
                 });
     }
 
+    // ⚡ Wapas add kiya gaya missing function jo error de raha tha
     private String getText(TextInputEditText et) {
         return et.getText() != null ? et.getText().toString().trim() : "";
     }
 }
-
-//
-

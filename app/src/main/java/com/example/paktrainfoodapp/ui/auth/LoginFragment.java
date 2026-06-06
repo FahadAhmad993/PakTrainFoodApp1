@@ -164,9 +164,28 @@ public class LoginFragment extends Fragment {
         PrefManager pref = new PrefManager(requireContext());
 
         if (doc.exists()) {
-            String name = doc.getString("name");
+            // 🚨 SECURITY GATE: Pehle check karo kya yeh Restaurant hai aur iska status false to nahi?
+            if (selectedRole.equals("RESTAURANT")) {
+                Boolean isVerified = doc.getBoolean("isVerified");
+
+                // Agar isVerified null ho ya false ho, to login block kar do
+                if (isVerified == null || !isVerified) {
+                    progressDialog.dismiss(); // Loader band karo
+
+                    // User ko btao ke admin review chal raha hai
+                    Toast.makeText(getContext(), "Your application is under review by Admin. Please wait!", Toast.LENGTH_LONG).show();
+
+                    // Session security ke liye logout karwa dein taake gate locked rahe
+                    auth.signOut();
+                    pref.setLogin(false);
+                    return; // Method ko yahan rok do, aage mat jaane do
+                }
+            }
+
+            // 🎉 Agar PASSENGER hai, ya approved RESTAURANT hai, to hi yeh niche wala purana code chalay ga:
+            String name = doc.getString("name"); // ya jo bhi field restaurantName hai
             pref.setRegistered(true, email);
-            pref.setUserName(name);
+            if (name != null) pref.setUserName(name);
             pref.setUserRole(roleDoc.toUpperCase());
 
             // 🔓 Success! Main activity par jane se pehle loader band
@@ -186,7 +205,6 @@ public class LoginFragment extends Fragment {
             }
         }
     }
-
     // ---------------- PASSWORD RESET ---------------- //
     private void sendResetPassword() {
         String email = edtEmail.getText() != null ? edtEmail.getText().toString().trim() : "";
