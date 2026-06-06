@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import './TrainDetails.css';
 
@@ -7,40 +7,31 @@ const TrainDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // We can get train info from router state, or fallback to local storage
-  const [train, setTrain] = useState(location.state?.train || null);
-  const [stations, setStations] = useState([]);
+  const initialTrain = location.state?.train || JSON.parse(localStorage.getItem('pakTrain_trains') || '[]').find(t => t.id === id) || null;
+  const [train] = useState(initialTrain);
+  const [stations, setStations] = useState(() => {
+    const storedStations = localStorage.getItem(`pakTrain_stations_${id}`);
+    if (storedStations) {
+      return JSON.parse(storedStations);
+    }
+    if (initialTrain) {
+      const defaultStations = [
+        { id: Date.now().toString(), name: initialTrain.departure || 'Origin', arrivalTime: '08:00 AM', departureTime: '08:30 AM' },
+        { id: (Date.now() + 1).toString(), name: initialTrain.destination || 'Destination', arrivalTime: '02:00 PM', departureTime: '02:30 PM' }
+      ];
+      localStorage.setItem(`pakTrain_stations_${id}`, JSON.stringify(defaultStations));
+      return defaultStations;
+    }
+    return [];
+  });
   const [showModal, setShowModal] = useState(false);
   const [newStation, setNewStation] = useState({ name: '', arrivalTime: '', departureTime: '' });
 
   useEffect(() => {
-    // If no train in state, try to find it from localStorage
     if (!train) {
-      const storedTrains = JSON.parse(localStorage.getItem('pakTrain_trains') || '[]');
-      const foundTrain = storedTrains.find(t => t.id === id);
-      if (foundTrain) {
-        setTrain(foundTrain);
-      } else {
-        // If still not found, go back
-        navigate('/train-routes');
-        return;
-      }
+      navigate('/train-routes');
     }
-
-    // Load stations for this specific train
-    const storedStations = localStorage.getItem(`pakTrain_stations_${id}`);
-    if (storedStations) {
-      setStations(JSON.parse(storedStations));
-    } else {
-      // Create some default dummy stations if first time
-      const defaultStations = [
-        { id: Date.now().toString(), name: train?.departure || 'Origin', arrivalTime: '08:00 AM', departureTime: '08:30 AM' },
-        { id: (Date.now() + 1).toString(), name: train?.destination || 'Destination', arrivalTime: '02:00 PM', departureTime: '02:30 PM' }
-      ];
-      setStations(defaultStations);
-      localStorage.setItem(`pakTrain_stations_${id}`, JSON.stringify(defaultStations));
-    }
-  }, [id, train, navigate]);
+  }, [train, navigate]);
 
   const saveStations = (updatedStations) => {
     setStations(updatedStations);

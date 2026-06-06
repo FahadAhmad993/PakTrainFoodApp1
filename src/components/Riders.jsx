@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   collection,
   onSnapshot,
@@ -6,7 +6,9 @@ import {
   query,
   addDoc,
   doc,
+  setDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -20,7 +22,9 @@ const RIDER_VERIFICATION_LOGO = 'https://images.unsplash.com/photo-1517242023851
 const Riders = () => {
   const [activeTab, setActiveTab] = useState('Active Riders');
   const [requests, setRequests] = useState([]);
+  const [activeRiders, setActiveRiders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isActiveLoading, setIsActiveLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const seededRef = useRef(false);
@@ -57,14 +61,38 @@ const Riders = () => {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    const partnersRef = collection(db, 'Users', 'Delivery', 'VerifiedRegister');
+    const partnersQuery = query(partnersRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(
+      partnersQuery,
+      (snapshot) => {
+        const items = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+        setActiveRiders(items);
+        setIsActiveLoading(false);
+      },
+      (listenError) => {
+        setError(listenError.message || 'Failed to load active delivery riders.');
+        setIsActiveLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
   const pendingCount = getPendingCount(requests);
 
-  const handleApprove = async (requestId) => {
+  const handleApprove = async (requestId, riderData) => {
     try {
-      await updateDoc(doc(db, 'rider_verifications', requestId), {
-        status: 'Approved',
-        verified: true
-      });
+      const approvedData = { ...riderData, status: 'active' };
+      delete approvedData.id;
+
+      const approvedRef = doc(db, 'Users', 'Delivery', 'VerifiedRegister', requestId);
+      const sourceRef = doc(db, 'rider_verifications', requestId);
+
+      await setDoc(approvedRef, approvedData);
+      await deleteDoc(sourceRef);
       setSelectedRequest(null);
     } catch (approveError) {
       setError(approveError.message || 'Could not approve rider.');
@@ -173,7 +201,7 @@ const Riders = () => {
                         </button>
                         <button
                           className="btn-approve-small"
-                          onClick={() => handleApprove(request.id)}
+                          onClick={() => handleApprove(request.id, request)}
                           disabled={request.status && request.status !== 'Pending'}
                           title={request.status && request.status !== 'Pending' ? 'Action disabled for non-pending' : 'Approve'}
                         >
@@ -305,7 +333,7 @@ const Riders = () => {
               <button className="btn-reject btn-secondary" onClick={() => handleReject(selectedRequest.id)}>
                 Mark as Not Verified
               </button>
-              <button className="btn-approve" onClick={() => handleApprove(selectedRequest.id)}>
+              <button className="btn-approve" onClick={() => handleApprove(selectedRequest.id, selectedRequest)}>
                 Mark as Verified
               </button>
             </div>
@@ -423,61 +451,34 @@ const Riders = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  <TableRow
-                    avatar="https://randomuser.me/api/portraits/men/32.jpg"
-                    name="Marcus Holloway"
-                    id="PT-90210"
-                    phone="+1 (555) 012-3456"
-                    vehicle="Electric Bike"
-                    vehicleIcon="M11.5 12.5l2 2m0 0l2-2m-2 2V9.5m-5 3v-3M3 10.5A2.5 2.5 0 105.5 8 2.5 2.5 0 003 10.5z"
-                    status="Pending"
-                    statusClass="status-pending"
-                    onView={() => null}
-                  />
-                  <TableRow
-                    avatar="https://randomuser.me/api/portraits/women/44.jpg"
-                    name="Sarah Chen"
-                    id="PT-88129"
-                    phone="+1 (555) 432-1098"
-                    vehicle="Compact Van"
-                    vehicleIcon="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                    status="On-Delivery"
-                    statusClass="status-delivery"
-                    onView={() => null}
-                  />
-                  <TableRow
-                    avatar="https://randomuser.me/api/portraits/men/85.jpg"
-                    name="James Wilson"
-                    id="PT-11204"
-                    phone="+1 (555) 987-6543"
-                    vehicle="Scooter"
-                    vehicleIcon="M13 10V3L4 14h7v7l9-11h-7z"
-                    status="Pending"
-                    statusClass="status-pending"
-                    onView={() => null}
-                  />
-                  <TableRow
-                    avatar="https://randomuser.me/api/portraits/women/68.jpg"
-                    name="Elena Rodriguez"
-                    id="PT-44501"
-                    phone="+1 (555) 777-8888"
-                    vehicle="Electric Bike"
-                    vehicleIcon="M11.5 12.5l2 2m0 0l2-2m-2 2V9.5m-5 3v-3M3 10.5A2.5 2.5 0 105.5 8 2.5 2.5 0 003 10.5z"
-                    status="Online"
-                    statusClass="status-online"
-                    onView={() => null}
-                  />
-                  <TableRow
-                    avatar="https://randomuser.me/api/portraits/men/22.jpg"
-                    name="David Kim"
-                    id="PT-22345"
-                    phone="+1 (555) 222-3333"
-                    vehicle="Hatchback"
-                    vehicleIcon="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1z"
-                    status="On-Delivery"
-                    statusClass="status-delivery"
-                    onView={() => null}
-                  />
+                  {isActiveLoading ? (
+                    <tr>
+                      <td colSpan="5" className="status-message">
+                        Loading active riders...
+                      </td>
+                    </tr>
+                  ) : activeRiders.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="status-message">
+                        No active riders found.
+                      </td>
+                    </tr>
+                  ) : (
+                    activeRiders.map((rider) => (
+                      <TableRow
+                        key={rider.id}
+                        avatar={rider.riderImage || DEFAULT_RIDER_IMAGE}
+                        name={rider.riderName || 'Unknown Rider'}
+                        id={rider.id}
+                        phone={rider.phone || 'N/A'}
+                        vehicle={rider.vehicleType || 'N/A'}
+                        vehicleIcon="M13 10V3L4 14h7v7l9-11h-7z"
+                        status={rider.status || 'Active'}
+                        statusClass={getStatusClass(rider.status || 'Active')}
+                        onView={() => setSelectedRequest(rider)}
+                      />
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

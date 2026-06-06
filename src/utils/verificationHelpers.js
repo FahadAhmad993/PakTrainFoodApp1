@@ -13,9 +13,11 @@ export const formatDate = (timestamp) => {
 export const getStatusClass = (status) => {
   switch ((status || '').toLowerCase()) {
     case 'approved':
-      return 'status-approved';
+    case 'active':
+      return 'status-active';
     case 'rejected':
-      return 'status-rejected';
+    case 'inactive':
+      return 'status-inactive';
     case 'pending':
     default:
       return 'status-pending';
@@ -26,9 +28,12 @@ export const getStatusBadgeLabel = (status) => {
   if (!status) return 'Unknown';
   switch (status.toLowerCase()) {
     case 'approved':
-      return 'Verified';
+    case 'active':
+      return 'Active';
     case 'rejected':
-      return 'Not Verified';
+      return 'Rejected';
+    case 'inactive':
+      return 'Inactive';
     case 'pending':
     default:
       return 'Pending';

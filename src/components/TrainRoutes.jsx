@@ -1,29 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './TrainRoutes.css';
 
 const TrainRoutes = () => {
   const navigate = useNavigate();
   
-  const [trains, setTrains] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [newTrain, setNewTrain] = useState({ name: '', departure: '', destination: '', status: 'Active' });
-
-  // Load from local storage on mount
-  useEffect(() => {
+  const [trains, setTrains] = useState(() => {
     const storedTrains = JSON.parse(localStorage.getItem('pakTrain_trains') || '[]');
     if (storedTrains.length === 0) {
-      // Default dummy data
       const defaultTrains = [
         { id: 'TRN-101', name: 'Green Line', departure: 'Karachi', destination: 'Islamabad', status: 'Active' },
         { id: 'TRN-102', name: 'Karakoram Express', departure: 'Lahore', destination: 'Karachi', status: 'Active' }
       ];
-      setTrains(defaultTrains);
       localStorage.setItem('pakTrain_trains', JSON.stringify(defaultTrains));
-    } else {
-      setTrains(storedTrains);
+      return defaultTrains;
     }
-  }, []);
+    return storedTrains;
+  });
+  const [showModal, setShowModal] = useState(false);
+  const [newTrain, setNewTrain] = useState({ name: '', departure: '', destination: '', status: 'Active' });
 
   const saveTrains = (updatedTrains) => {
     setTrains(updatedTrains);
