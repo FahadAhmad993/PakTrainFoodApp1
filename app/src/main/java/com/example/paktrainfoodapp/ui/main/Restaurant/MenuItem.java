@@ -21,6 +21,9 @@ public class MenuItem {
     private String orderStatus;
     private Map<String, Object> meta;
     private String docPath;
+    // MenuItem class mein ye add kar dein:
+    private long etaEndTime;
+
 
     public MenuItem() {}
 
@@ -90,13 +93,14 @@ public class MenuItem {
     public void setStatus(String status) {
         this.status = status;
     }
+    public long getEtaEndTime() { return etaEndTime; }
+    public void setEtaEndTime(long etaEndTime) { this.etaEndTime = etaEndTime; }
 
 }
 
 
 
 
-//
 
 
 

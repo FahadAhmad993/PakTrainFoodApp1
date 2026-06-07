@@ -1,20 +1,18 @@
 package com.example.paktrainfoodapp.ui.main.Delivery;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.location.Location;
 import android.os.Bundle;
 import android.view.*;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.core.app.ActivityCompat;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.paktrainfoodapp.R;
+import com.example.paktrainfoodapp.ui.main.Restaurant.OrderDetailFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.*;
 
@@ -32,11 +30,6 @@ public class Order_New_Fragment extends Fragment {
     private DeliveryBoyAdapter adapter;
 
     private String riderId;
-
-    private double riderLat = 0;
-    private double riderLng = 0;
-
-    private final Map<String, String> restaurantCache = new HashMap<>();
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -59,69 +52,96 @@ public class Order_New_Fragment extends Fragment {
 
         orderList = new ArrayList<>();
 
-        if (auth.getCurrentUser() != null) {
-            riderId = auth.getCurrentUser().getUid();
-        }
+        riderId = (auth.getCurrentUser() != null)
+                ? auth.getCurrentUser().getUid()
+                : "";
 
-        // ✅ ADAPTER
-        adapter = new DeliveryBoyAdapter(
-                requireContext(),
-                orderList,
-                (order, position) -> {
+        // ✅ ADAPTER FIXED CALLBACK
+        adapter = new DeliveryBoyAdapter(requireContext(), orderList,
+                new DeliveryBoyAdapter.OnActionClick() {
 
-                    db.document(order.getDocPath())
-                            .update(
-                                    "orderStatus", "Accept",
-                                    "acceptedBy", riderId
-                            )
-                            .addOnSuccessListener(unused -> {
+                    @Override
+                    public void onItemClick(DeliveryBoyModel order, int position) {
+                        openDetail(order);
+                    }
 
-                                Toast.makeText(
-                                        getContext(),
-                                        "Order Accepted",
-                                        Toast.LENGTH_SHORT
-                                ).show();
-                            });
+                    @Override
+                    public void onAccept(DeliveryBoyModel order, int position) {
+                        showAcceptDialog(order, position);
+                    }
+
+                    @Override
+                    public void onButtonClick(DeliveryBoyModel order, int position) {
+                        handleButton(order, position);
+                    }
                 });
 
         recyclerView.setAdapter(adapter);
 
-        getRiderLocation();
+        loadNearbyOrders();
 
         return view;
     }
 
-    // ================= RIDER LOCATION =================
-    private void getRiderLocation() {
+    // ================= POPUP =================
+    private void showAcceptDialog(DeliveryBoyModel order, int position) {
 
-        com.google.android.gms.location.FusedLocationProviderClient client =
-                com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(requireActivity());
-
-        if (ActivityCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-        ) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-
-        client.getLastLocation()
-                .addOnSuccessListener(location -> {
-
-                    if (location != null) {
-
-                        riderLat = location.getLatitude();
-                        riderLng = location.getLongitude();
-
-                        loadNearbyOrders(); // IMPORTANT
-                    }
-                });
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Accept Order")
+                .setMessage("Kya aap ye order accept karna chahte hain?")
+                .setPositiveButton("YES", (dialog, which) -> acceptOrder(order, position))
+                .setNegativeButton("NO", null)
+                .show();
     }
 
-    // ================= LOAD NEARBY ORDERS =================
+    // ================= ACCEPT ORDER =================
+    private void acceptOrder(DeliveryBoyModel order, int position) {
+
+        db.collection("Orders")
+                .document(order.getOrderId())
+                .update(
+                        "orderStatus", "accepted_by_rider",
+                        "acceptedBy", riderId
+                )
+                .addOnSuccessListener(unused -> {
+
+                    Toast.makeText(getContext(),
+                            "Order Accepted",
+                            Toast.LENGTH_SHORT).show();
+
+                    if (position != RecyclerView.NO_POSITION &&
+                            position < orderList.size()) {
+
+                        orderList.remove(position);
+                        adapter.notifyItemRemoved(position);
+                    }
+
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(getContext(),
+                                e.getMessage(),
+                                Toast.LENGTH_LONG).show()
+                );
+    }
+
+    // ================= DETAIL OPEN =================
+    private void openDetail(DeliveryBoyModel order) {
+
+        OrderDetailFragment fragment =
+                OrderDetailFragment.newInstance(order.getOrderId());
+
+        requireActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.main_container, fragment)
+                .addToBackStack("order_detail")
+                .commit();
+    }
+
+    // ================= LOAD ORDERS =================
     private void loadNearbyOrders() {
 
         db.collection("Orders")
-                .whereEqualTo("orderStatus", "WFR")
+                .whereEqualTo("orderStatus", "ready_for_delivery")
                 .addSnapshotListener((query, e) -> {
 
                     if (e != null || query == null) return;
@@ -130,35 +150,61 @@ public class Order_New_Fragment extends Fragment {
 
                     for (QueryDocumentSnapshot doc : query) {
 
-                        Double totalPrice = doc.getDouble("totalPrice");
-
-                        if (totalPrice == null) {
-                            totalPrice = 0.0;
-                        }
-
                         DeliveryBoyModel order =
                                 new DeliveryBoyModel(
                                         doc.getId(),
-                                        totalPrice,
+                                        doc.getDouble("totalPrice") != null
+                                                ? doc.getDouble("totalPrice")
+                                                : 0.0,
                                         doc.getReference().getPath()
                                 );
 
+                        order.setStatus(doc.getString("orderStatus"));
                         orderList.add(order);
                     }
 
                     adapter.notifyDataSetChanged();
 
-                    if (orderList.isEmpty()) {
-                        recyclerView.setVisibility(View.GONE);
-                        layoutNoOrders.setVisibility(View.VISIBLE);
-                    } else {
-                        recyclerView.setVisibility(View.VISIBLE);
-                        layoutNoOrders.setVisibility(View.GONE);
-                    }
+                    boolean empty = orderList.isEmpty();
+
+                    recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+                    layoutNoOrders.setVisibility(empty ? View.VISIBLE : View.GONE);
                 });
     }
+    private void handleButton(DeliveryBoyModel order, int position) {
+
+        String status = order.getStatus();
+
+        if ("accepted_by_rider".equals(status)) {
+
+            updateStatus(order, "arrive_rider_at_resturent");
+            Toast.makeText(getContext(), "Arrived marked", Toast.LENGTH_SHORT).show();
+
+        } else if ("arrive_rider_at_resturent".equals(status)) {
+
+            Toast.makeText(getContext(), "Wait for restaurant", Toast.LENGTH_SHORT).show();
+
+        } else if ("dropped".equals(status)) {
+
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Pickup Order")
+                    .setMessage("Confirm pickup?")
+                    .setPositiveButton("YES", (d, w) -> {
+                        updateStatus(order, "pick_up");
+                        orderList.remove(position);
+                        adapter.notifyItemRemoved(position);
+                    })
+                    .setNegativeButton("NO", null)
+                    .show();
+        }
+    }
+
+    private void updateStatus(DeliveryBoyModel order, String arriveRiderAtResturent) {
+    }
 }
-//
+
+
+
 
 
 

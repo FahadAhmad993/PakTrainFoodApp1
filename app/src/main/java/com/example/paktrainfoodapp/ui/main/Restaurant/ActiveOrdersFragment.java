@@ -18,7 +18,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.paktrainfoodapp.R;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
@@ -59,7 +58,6 @@ public class ActiveOrdersFragment extends Fragment {
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         orderList = new ArrayList<>();
-
         adapter = new OrdersAdapter(orderList);
         recyclerView.setAdapter(adapter);
 
@@ -73,9 +71,7 @@ public class ActiveOrdersFragment extends Fragment {
     }
 
     @Override
-    public void onViewCreated(@NonNull View view,
-                              @Nullable Bundle savedInstanceState) {
-
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
         if (!restaurantUid.isEmpty()) {
@@ -94,37 +90,22 @@ public class ActiveOrdersFragment extends Fragment {
                 .whereEqualTo("orderStatus", "Active")
                 .addSnapshotListener((query, e) -> {
 
-                    if (e != null || query == null || !isAdded()) {
-                        return;
-                    }
+                    if (e != null || query == null || !isAdded()) return;
 
                     orderList.clear();
 
                     for (QueryDocumentSnapshot doc : query) {
 
                         MenuItem item = new MenuItem();
-
                         item.setId(doc.getId());
+                        item.setPassengerUid(doc.getString("passengerUid"));
+                        item.setDocPath(doc.getReference().getPath());
 
-                        item.setPassengerUid(
-                                doc.getString("passengerUid")
-                        );
-
-                        item.setDocPath(
-                                doc.getReference().getPath()
-                        );
-
-                        // TOTAL PRICE
                         Double totalPrice = doc.getDouble("totalPrice");
-
                         if (totalPrice != null) {
-
-                            Map<String, Double> varMap =
-                                    new HashMap<>();
-
-                            varMap.put("Total", totalPrice);
-
-                            item.setVariations(varMap);
+                            Map<String, Double> map = new HashMap<>();
+                            map.put("Total", totalPrice);
+                            item.setVariations(map);
                         }
 
                         orderList.add(item);
@@ -133,30 +114,22 @@ public class ActiveOrdersFragment extends Fragment {
                     adapter.notifyDataSetChanged();
 
                     boolean empty = orderList.isEmpty();
-
-                    recyclerView.setVisibility(
-                            empty ? View.GONE : View.VISIBLE
-                    );
-
-                    layoutNoOrders.setVisibility(
-                            empty ? View.VISIBLE : View.GONE
-                    );
+                    recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+                    layoutNoOrders.setVisibility(empty ? View.VISIBLE : View.GONE);
                 });
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-
         if (orderListener != null) {
             orderListener.remove();
         }
     }
 
-    // ====================== ADAPTER ======================
+    // ================= ADAPTER =================
 
-    private class OrdersAdapter
-            extends RecyclerView.Adapter<OrdersAdapter.ViewHolder> {
+    private class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.ViewHolder> {
 
         private final ArrayList<MenuItem> items;
 
@@ -166,121 +139,73 @@ public class ActiveOrdersFragment extends Fragment {
 
         @NonNull
         @Override
-        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent,
-                                             int viewType) {
-
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
             View v = LayoutInflater.from(parent.getContext())
-                    .inflate(
-                            R.layout.passanger_order_item_simple,
-                            parent,
-                            false
-                    );
-
+                    .inflate(R.layout.passanger_order_item_simple, parent, false);
             return new ViewHolder(v);
         }
 
         @Override
-        public void onBindViewHolder(@NonNull ViewHolder h,
-                                     int position) {
+        public void onBindViewHolder(@NonNull ViewHolder h, int position) {
 
             MenuItem m = items.get(position);
 
             h.txtOrderId.setText("#" + m.getId());
 
             double total = 0;
-
-            if (m.getVariations() != null
-                    && !m.getVariations().isEmpty()) {
-
-                total = m.getVariations()
-                        .values()
-                        .iterator()
-                        .next();
+            if (m.getVariations() != null && !m.getVariations().isEmpty()) {
+                total = m.getVariations().values().iterator().next();
             }
 
             h.txtTotalPrice.setText("Total: Rs " + total);
 
-            // SHOW ACCEPT BUTTON
+            // ACTIVE TAB UI
             h.btnAccept.setVisibility(View.VISIBLE);
-            h.btnDelete.setVisibility(View.VISIBLE);
-            // ACCEPT ORDER
+            h.timeRow.setVisibility(View.GONE);
+
+            // ACCEPT CLICK
             h.btnAccept.setOnClickListener(v -> {
-                new AlertDialog.Builder(v.getContext())
+                new AlertDialog.Builder(requireContext())
                         .setTitle("Accept Order")
-                        .setMessage("Accept this order?")
-                        .setPositiveButton("Yes",
-                                (d, w) ->
-                                        updateOrderStatus(m, "Accepted"))
+                        .setMessage("Kya aap is order ko accept karna chahte ho?")
+                        .setPositiveButton("Yes", (d, w) -> updateOrderStatus(m, "Accepted"))
                         .setNegativeButton("No", null)
                         .show();
-            } );
-
-            // CANCEL ORDER
-            h.btnDelete.setOnClickListener(v -> {
-
-                new AlertDialog.Builder(v.getContext())
-                        .setTitle("Cancel Order")
-                        .setMessage("Cancel this order?")
-                        .setPositiveButton("Yes",
-                                (d, w) ->
-                                        updateOrderStatus(m, "Cancelled"))
-                                       .setNegativeButton("No", null)
-                             .show();
             });
 
-            // OPEN DETAIL
+            // ITEM CLICK → DETAIL
             h.itemView.setOnClickListener(v -> {
+                Fragment detailFragment = OrderDetailFragment.newInstance(m.getId());
 
-                Fragment detailFragment =
-                        OrderDetailFragment.newInstance(
-                                m.getId()
-                        );
-
-                requireActivity()
-                        .getSupportFragmentManager()
+                requireActivity().getSupportFragmentManager()
                         .beginTransaction()
-                        .replace(
-                                R.id.main_container,
-                                detailFragment
-                        )
+                        .replace(R.id.main_container, detailFragment)
                         .addToBackStack("order_detail")
                         .commit();
             });
         }
 
-        private void updateOrderStatus(MenuItem m,
-                                       String status) {
+        private void updateOrderStatus(MenuItem m, String status) {
 
-            DocumentReference globalRef =
-                    firestore.document(m.getDocPath());
+            DocumentReference globalRef = firestore.document(m.getDocPath());
 
-            DocumentReference passRef =
-                    firestore.collection("Users")
-                            .document("Passenger")
-                            .collection("OrderNow")
-                            .document(m.getPassengerUid())
-                            .collection("Orders")
-                            .document(m.getId());
+            DocumentReference passRef = firestore.collection("Users")
+                    .document("Passenger")
+                    .collection("OrderNow")
+                    .document(m.getPassengerUid())
+                    .collection("Orders")
+                    .document(m.getId());
 
             WriteBatch batch = firestore.batch();
 
-            batch.update(globalRef,
-                    "orderStatus",
-                    status);
+            batch.update(globalRef, "orderStatus", status);
+            batch.update(passRef, "orderStatus", status);
 
-            batch.update(passRef,
-                    "orderStatus",
-                    status);
-
-            batch.commit()
-                    .addOnSuccessListener(a -> {
-
-                        Toast.makeText(
-                                getContext(),
-                                "Order " + status,
-                                Toast.LENGTH_SHORT
-                        ).show();
-                    });
+            batch.commit().addOnSuccessListener(a -> {
+                Toast.makeText(requireContext(),
+                        "Order " + status,
+                        Toast.LENGTH_SHORT).show();
+            });
         }
 
         @Override
@@ -288,28 +213,19 @@ public class ActiveOrdersFragment extends Fragment {
             return items.size();
         }
 
-        // ====================== VIEW HOLDER ======================
-
         class ViewHolder extends RecyclerView.ViewHolder {
 
             TextView txtOrderId, txtTotalPrice;
-
-            ImageView btnDelete, btnAccept;
+            ImageView btnAccept;
+            LinearLayout timeRow;
 
             ViewHolder(@NonNull View itemView) {
                 super(itemView);
 
-                txtOrderId =
-                        itemView.findViewById(R.id.txtOrderId);
-
-                txtTotalPrice =
-                        itemView.findViewById(R.id.txtTotalPrice);
-
-                btnDelete =
-                        itemView.findViewById(R.id.btnDelete);
-
-                btnAccept =
-                        itemView.findViewById(R.id.btnAccept);
+                txtOrderId = itemView.findViewById(R.id.txtOrderId);
+                txtTotalPrice = itemView.findViewById(R.id.txtTotalPrice);
+                btnAccept = itemView.findViewById(R.id.btnAccept);
+                timeRow = itemView.findViewById(R.id.timeRow);
             }
         }
     }
@@ -317,7 +233,9 @@ public class ActiveOrdersFragment extends Fragment {
 
 
 
-//
+
+
+
 
 
 
