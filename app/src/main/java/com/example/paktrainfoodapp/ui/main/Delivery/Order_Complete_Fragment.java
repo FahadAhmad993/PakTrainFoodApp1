@@ -81,7 +81,7 @@ public class Order_Complete_Fragment extends Fragment {
 
                         // ONLY THESE STATUS FROM YOUR FLOW
                         if (!"pick_up".equals(status) &&
-                                !"DELIVERED".equals(status)) {
+                                !"completed".equals(status)) {
                             continue;
                         }
 
@@ -147,7 +147,7 @@ h.timeRow.setVisibility(View.VISIBLE);
                             .setMessage("Kya aap order handover kar chuke hain?")
                             .setPositiveButton("YES", (dialog, which) -> {
 
-                                updateStatus(model, "DELIVERED");
+                                updateStatus(model, "completed");
 
                                 Toast.makeText(getContext(),
                                         "Order Delivered",
@@ -158,7 +158,7 @@ h.timeRow.setVisibility(View.VISIBLE);
                 });
             }
 
-            else if ("DELIVERED".equals(status)) {
+            else if ("completed".equals(status)) {
 
                 h.btnAction.setText("Completed");
                 h.btnAction.setEnabled(false);

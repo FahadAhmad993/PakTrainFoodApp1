@@ -78,11 +78,9 @@ public class ActiveOrdersFragment extends Fragment implements Refreshable {
 
     private void listenOrdersRealtime() {
 
-        CollectionReference ordersRef = firestore.collection("Users")
-                .document("Passenger")
-                .collection("OrderNow")
-                .document(uid)
-                .collection("Orders");
+        // ✅ ONLY THIS PATH NOW
+        CollectionReference ordersRef =
+                firestore.collection("Orders");
 
         if (listenerRegistration != null)
             listenerRegistration.remove();
@@ -97,6 +95,7 @@ public class ActiveOrdersFragment extends Fragment implements Refreshable {
 
                 String status = doc.getString("orderStatus");
 
+                // SAME FILTER AS BEFORE (Active + Cancelled)
                 if ("Active".equalsIgnoreCase(status) ||
                         "Cancelled".equalsIgnoreCase(status)) {
 
@@ -108,11 +107,7 @@ public class ActiveOrdersFragment extends Fragment implements Refreshable {
                                     : 0;
 
                     orderList.add(
-                            new OrderModel(
-                                    orderId,
-                                    totalPrice,
-                                    status
-                            )
+                            new OrderModel(orderId, totalPrice, status)
                     );
                 }
             }
@@ -121,14 +116,10 @@ public class ActiveOrdersFragment extends Fragment implements Refreshable {
 
             boolean empty = orderList.isEmpty();
 
-            recyclerView.setVisibility(
-                    empty ? View.GONE : View.VISIBLE
-            );
-
-            layoutNoOrders.setVisibility(
-                    empty ? View.VISIBLE : View.GONE
-            );
+            recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+            layoutNoOrders.setVisibility(empty ? View.VISIBLE : View.GONE);
         });
+
     }
 
     @Override
@@ -282,14 +273,6 @@ public class ActiveOrdersFragment extends Fragment implements Refreshable {
                             String orderId =
                                     selected.getOrderId();
 
-                            firestore.collection("Users")
-                                    .document("Passenger")
-                                    .collection("OrderNow")
-                                    .document(uid)
-                                    .collection("Orders")
-                                    .document(orderId)
-                                    .delete();
-
                             firestore.collection("Orders")
                                     .document(orderId)
                                     .delete();
@@ -352,6 +335,14 @@ public class ActiveOrdersFragment extends Fragment implements Refreshable {
 }
 
 
-//
+
+
+
+
+
+
+
+
+
 
 
