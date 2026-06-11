@@ -66,23 +66,20 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
             return view;
         }
 
-        loadAcceptedOrders();
+        loadOrders();
 
         return view;
     }
 
-    private void loadAcceptedOrders() {
+    private void loadOrders() {
 
-        CollectionReference ref = firestore.collection("Users")
-                .document("Passenger")
-                .collection("OrderNow")
-                .document(uid)
-                .collection("Orders");
+        Query ordersQuery = firestore.collection("Orders")
+                .whereEqualTo("passengerUid", uid);
 
         if (listenerRegistration != null)
             listenerRegistration.remove();
 
-        listenerRegistration = ref.addSnapshotListener((snap, e) -> {
+        listenerRegistration = ordersQuery.addSnapshotListener((snap, e) -> {
 
             if (e != null || snap == null) return;
 
@@ -92,16 +89,18 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
 
                 String status = doc.getString("orderStatus");
 
-                // ONLY ACCEPTED
-                if ("Accepted".equalsIgnoreCase(status)) {
-
-                    String orderId = doc.getId();
-
-                    Double totalPrice = doc.getDouble("totalPrice");
-                    double price = totalPrice != null ? totalPrice : 0;
-
-                    orderList.add(new OrderModel(orderId, price));
+                // ONLY ALLOWED STATUSES
+                if (!"Accepted".equalsIgnoreCase(status)
+                        && !"ready_for_delivery".equalsIgnoreCase(status)) {
+                    continue;
                 }
+
+                String orderId = doc.getId();
+
+                Double totalPrice = doc.getDouble("totalPrice");
+                double price = totalPrice != null ? totalPrice : 0;
+
+                orderList.add(new OrderModel(orderId, price, status));
             }
 
             adapter.notifyDataSetChanged();
@@ -111,7 +110,6 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
             layoutNoOrders.setVisibility(empty ? View.VISIBLE : View.GONE);
         });
     }
-
     @Override
     public void onDestroyView() {
         super.onDestroyView();
@@ -122,12 +120,10 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
         }
     }
 
-    // ================= ADAPTER SAME AS ACTIVE =================
+    // ================= ADAPTER =================
     private static class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.OrderViewHolder> {
 
         private final ArrayList<OrderModel> items;
-        private final FirebaseFirestore firestore;
-        private final String uid;
         private final Fragment fragment;
 
         OrdersAdapter(ArrayList<OrderModel> items,
@@ -136,8 +132,6 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
                       Fragment fragment) {
 
             this.items = items;
-            this.firestore = firestore;
-            this.uid = uid;
             this.fragment = fragment;
         }
 
@@ -159,27 +153,31 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
             holder.txtOrderId.setText("#" + order.getOrderId());
             holder.txtTotalPrice.setText("Total: Rs " + order.getTotalPrice());
 
-            // OPEN DETAIL SAME AS ACTIVE
+            // SHOW TIME ROW ALWAYS
+            holder.timeRow.setVisibility(View.VISIBLE);
+            holder.btnReady.setEnabled(false);
+            holder.btnReady.setAlpha(0.6f);
+
+            String status = order.getStatus();
+
+            if ("Accepted".equalsIgnoreCase(status)) {
+                holder.btnReady.setText("Preparing...");
+                holder.btnReady.setBackgroundColor(0xFFB0BEC5); // light gray
+            }
+            else if ("ready_for_delivery".equalsIgnoreCase(status)) {
+                holder.btnReady.setText("Waiting for Rider Accept Order...");
+                holder.btnReady.setBackgroundColor(0xFF90A4AE); // slightly darker gray
+            }
+
+            // CLICK ITEM -> ONLY TOAST
             holder.itemView.setOnClickListener(v -> {
 
                 int pos = holder.getAdapterPosition();
                 if (pos == RecyclerView.NO_POSITION) return;
 
-                OrderModel selected = items.get(pos);
-
-                passanger_orderDetailFragment detailFragment =
-                        new passanger_orderDetailFragment();
-
-                Bundle bundle = new Bundle();
-                bundle.putString("orderId", selected.getOrderId());
-                detailFragment.setArguments(bundle);
-
-                fragment.requireActivity()
-                        .getSupportFragmentManager()
-                        .beginTransaction()
-                        .replace(R.id.fragment_holder, detailFragment)
-                        .addToBackStack("order_detail")
-                        .commit();
+                Toast.makeText(v.getContext(),
+                        "Order ID: " + order.getOrderId(),
+                        Toast.LENGTH_SHORT).show();
             });
         }
 
@@ -191,15 +189,21 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
         static class OrderViewHolder extends RecyclerView.ViewHolder {
 
             TextView txtOrderId, txtTotalPrice;
+            LinearLayout timeRow;
+            Button btnReady;
 
             OrderViewHolder(@NonNull View itemView) {
                 super(itemView);
 
                 txtOrderId = itemView.findViewById(R.id.txtOrderId);
                 txtTotalPrice = itemView.findViewById(R.id.txtTotalPrice);
+
+                timeRow = itemView.findViewById(R.id.timeRow);
+                btnReady = itemView.findViewById(R.id.btnReady);
             }
         }
     }
+
     @Override
     public void refreshData() {
 
@@ -208,12 +212,8 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
         orderList.clear();
         adapter.notifyDataSetChanged();
 
-        loadAcceptedOrders();
+        loadOrders();
 
-        recyclerView.postDelayed(() -> {
-
-            recyclerView.setVisibility(View.VISIBLE);
-
-        }, 2000);
+        recyclerView.postDelayed(() -> recyclerView.setVisibility(View.VISIBLE), 1000);
     }
-}//
+}

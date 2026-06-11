@@ -1,15 +1,15 @@
 package com.example.paktrainfoodapp.ui.main.Restaurant;
 
-import static android.view.View.VISIBLE;
-
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -45,12 +45,9 @@ public class AcceptedOrdersFragment extends Fragment {
 
     private ListenerRegistration orderListener;
 
-    private final Handler timerHandler = new Handler();
-
-    // ================= LOCATION =================
     private FusedLocationProviderClient fusedLocationClient;
-    private double restaurantLat = 0;
-    private double restaurantLng = 0;
+    private double restaurantLat = 0.0;
+    private double restaurantLng = 0.0;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -78,9 +75,7 @@ public class AcceptedOrdersFragment extends Fragment {
                 ? FirebaseAuth.getInstance().getCurrentUser().getUid()
                 : "";
 
-        // LOCATION INIT
-        fusedLocationClient =
-                LocationServices.getFusedLocationProviderClient(requireActivity());
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity());
 
         return view;
     }
@@ -97,14 +92,10 @@ public class AcceptedOrdersFragment extends Fragment {
     // ================= LOAD ORDERS =================
     private void loadAcceptedOrders() {
 
-        if (orderListener != null) {
-            orderListener.remove();
-        }
+        if (orderListener != null) orderListener.remove();
 
         orderListener = firestore.collection("Orders")
                 .whereEqualTo("restaurantUid", restaurantUid)
-                .whereIn("orderStatus",
-                        java.util.Arrays.asList("Accepted", "WFR"))
                 .addSnapshotListener((query, e) -> {
 
                     if (e != null || query == null || !isAdded()) return;
@@ -113,18 +104,30 @@ public class AcceptedOrdersFragment extends Fragment {
 
                     for (QueryDocumentSnapshot doc : query) {
 
-                        MenuItem item = new MenuItem();
+                        String status = doc.getString("orderStatus");
+                        if (status == null) continue;
 
+                        // REMOVE ORDER WHEN RIDER ACCEPTS
+                        if ("accepted_by_rider".equals(status)) {
+                            continue;
+                        }
+                        // ONLY VALID STATUSES
+                        if (!status.equals("Accepted") &&
+                                !status.equals("ready_for_delivery")) continue;
+
+                        MenuItem item = new MenuItem();
                         item.setId(doc.getId());
                         item.setPassengerUid(doc.getString("passengerUid"));
                         item.setDocPath(doc.getReference().getPath());
-                        item.setStatus(doc.getString("orderStatus"));
+                        item.setStatus(status);
 
-                        Double totalPrice = doc.getDouble("totalPrice");
+                        Long eta = doc.getLong("etaEndTime");
+                        item.setEtaEndTime(eta != null ? eta : 0L);
 
-                        if (totalPrice != null) {
+                        Double price = doc.getDouble("totalPrice");
+                        if (price != null) {
                             Map<String, Double> map = new HashMap<>();
-                            map.put("Total", totalPrice);
+                            map.put("Total", price);
                             item.setVariations(map);
                         }
 
@@ -134,52 +137,42 @@ public class AcceptedOrdersFragment extends Fragment {
                     adapter.notifyDataSetChanged();
 
                     boolean empty = orderList.isEmpty();
-
-                    recyclerView.setVisibility(empty ? View.GONE : VISIBLE);
-                    layoutNoOrders.setVisibility(empty ? VISIBLE : View.GONE);
+                    recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+                    layoutNoOrders.setVisibility(empty ? View.VISIBLE : View.GONE);
                 });
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-
-        if (orderListener != null) {
-            orderListener.remove();
-        }
+        if (orderListener != null) orderListener.remove();
     }
 
-    // ================= LOCATION FUNCTION =================
+    // ================= LOCATION =================
     private void getRestaurantLocation(Runnable callback) {
 
-        if (ActivityCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-        ) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
 
-            requestPermissions(
-                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                    101
-            );
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 101);
             return;
         }
 
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(location -> {
-
-                    if (location != null) {
-                        restaurantLat = location.getLatitude();
-                        restaurantLng = location.getLongitude();
-                    }
-
-                    callback.run();
-                });
+        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+            if (location != null) {
+                restaurantLat = location.getLatitude();
+                restaurantLng = location.getLongitude();
+            }
+            callback.run();
+        });
     }
 
     // ================= ADAPTER =================
     private class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.ViewHolder> {
 
         private final ArrayList<MenuItem> items;
+        private final Handler handler = new Handler(Looper.getMainLooper());
 
         OrdersAdapter(ArrayList<MenuItem> items) {
             this.items = items;
@@ -188,10 +181,8 @@ public class AcceptedOrdersFragment extends Fragment {
         @NonNull
         @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-
             View v = LayoutInflater.from(parent.getContext())
                     .inflate(R.layout.passanger_order_item_simple, parent, false);
-
             return new ViewHolder(v);
         }
 
@@ -202,131 +193,133 @@ public class AcceptedOrdersFragment extends Fragment {
 
             h.txtOrderId.setText("#" + m.getId());
 
-            double total = 0;
-            if (m.getVariations() != null && !m.getVariations().isEmpty()) {
-                total = m.getVariations().values().iterator().next();
-            }
+            double total = (m.getVariations() != null && !m.getVariations().isEmpty())
+                    ? m.getVariations().values().iterator().next()
+                    : 0;
 
-            h.txtTotalPrice.setText("Total: Rs " + total);
+            h.txtTotalPrice.setText("Rs " + total);
 
+            // RESET UI
             h.btnAccept.setVisibility(View.GONE);
             h.btnDelete.setVisibility(View.GONE);
+
             h.timeRow.setVisibility(View.VISIBLE);
+            h.btnReady.setVisibility(View.VISIBLE);
+            h.btnReady.setEnabled(true);
 
             String status = m.getStatus();
 
-            if ("WFR".equalsIgnoreCase(status)) {
+// RESET default
+            h.btnReady.setEnabled(true);
+            h.btnReady.setAlpha(1f);
+            h.btnReady.setVisibility(View.VISIBLE);
 
-                h.btnReady.setEnabled(false);
-                h.btnReady.setAlpha(0.4f);
-                h.btnReady.setText("Sent to Rider");
+// STATUS UI CONTROL
+            switch (status) {
 
-            } else {
+                case "Accepted":
+                    h.btnReady.setText("Ready For Delivery");
+                    h.btnReady.setEnabled(true);
+                    h.btnReady.setAlpha(1f);
+                    break;
 
-                h.btnReady.setEnabled(true);
-                h.btnReady.setAlpha(1f);
-                h.btnReady.setText("Ready For Delivery");
+                case "ready_for_delivery":
+                    h.btnReady.setText("Waiting for Rider...");
+                    h.btnReady.setEnabled(false);
+                    h.btnReady.setAlpha(0.5f);
+                    break;
+
+                case "accepted_by_rider":
+                    h.itemView.setVisibility(View.GONE); // REMOVE FROM LIST UI
+                    return;
             }
 
-            // ================= READY BUTTON =================
+            updateTimer(h, m.getEtaEndTime());
+
+            // ================= READY CLICK =================
             h.btnReady.setOnClickListener(v -> {
 
-                AlertDialog.Builder builder =
-                        new AlertDialog.Builder(getContext());
+                if (!"Accepted".equals(m.getStatus())) return;
 
-                builder.setTitle("Confirmation");
-                builder.setMessage("Is your food ready for delivery?");
+                h.btnReady.setEnabled(false);
+                h.btnReady.setAlpha(0.5f);
 
-                builder.setPositiveButton("Yes", (dialog, which) -> {
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Ready for Delivery")
+                        .setMessage("Kya khana tayar hai?")
+                        .setPositiveButton("Yes", (d, w) -> {
 
-                    // 🔥 FIRST GET LOCATION THEN SAVE
-                    getRestaurantLocation(() -> {
+                            getRestaurantLocation(() -> {
 
-                        Map<String, Object> map = new HashMap<>();
+                                Map<String, Object> map = new HashMap<>();
+                                map.put("orderStatus", "ready_for_delivery");
+                                map.put("restaurantLat", restaurantLat);
+                                map.put("restaurantLng", restaurantLng);
+                                map.put("readyTime", System.currentTimeMillis());
 
-                        map.put("orderStatus", "WFR");
-                        map.put("restaurantLat", restaurantLat);
-                        map.put("restaurantLng", restaurantLng);
-                        map.put("wfrTime", System.currentTimeMillis());
+                                firestore.collection("Orders")
+                                        .document(m.getId())
+                                        .update(map)
+                                        .addOnSuccessListener(unused -> {
 
-                        firestore.collection("Orders")
-                                .document(m.getId())
-                                .update(map);
+                                            m.setStatus("ready_for_delivery");
 
-                        Toast.makeText(getContext(),
-                                "Sent to Riders",
-                                Toast.LENGTH_SHORT).show();
-                    });
+                                            Toast.makeText(getContext(),
+                                                    "Order Ready For Delivery",
+                                                    Toast.LENGTH_SHORT).show();
 
-                });
+                                            adapter.notifyItemChanged(h.getAdapterPosition());
+                                        })
+                                        .addOnFailureListener(e -> {
 
-                builder.setNegativeButton("No", (d, w) -> d.dismiss());
+                                            // rollback UI
+                                            h.btnReady.setEnabled(true);
+                                            h.btnReady.setAlpha(1f);
 
-                builder.show();
+                                            Toast.makeText(getContext(),
+                                                    e.getMessage(),
+                                                    Toast.LENGTH_LONG).show();
+                                        });
+                            });
+
+                        })
+                        .setNegativeButton("No", (d, w) -> {
+                            h.btnReady.setEnabled(true);
+                            h.btnReady.setAlpha(1f);
+                        })
+                        .show();
             });
 
-            // ================= DETAIL =================
+            // ================= DETAIL CLICK =================
             h.itemView.setOnClickListener(v -> {
 
-                Fragment detailFragment =
-                        OrderDetailFragment.newInstance(m.getId());
+                Fragment f = OrderDetailFragment.newInstance(m.getId());
 
-                requireActivity()
-                        .getSupportFragmentManager()
+                requireActivity().getSupportFragmentManager()
                         .beginTransaction()
-                        .replace(R.id.main_container, detailFragment)
+                        .replace(R.id.main_container, f)
                         .addToBackStack("order_detail")
                         .commit();
             });
+        }
 
-            // ================= TIMER =================
-            DocumentReference orderRef =
-                    firestore.collection("Orders")
-                            .document(m.getId());
+        // ================= TIMER =================
+        private void updateTimer(ViewHolder h, long etaEndTime) {
 
-            orderRef.addSnapshotListener((doc, error) -> {
+            long remaining = etaEndTime - System.currentTimeMillis();
 
-                if (doc == null || !doc.exists()) return;
+            if (remaining > 0) {
 
-                Long etaEndTime = doc.getLong("etaEndTime");
+                long mins = (remaining / 1000) / 60;
+                long secs = (remaining / 1000) % 60;
 
-                if (etaEndTime == null) return;
+                h.txtTimer.setText(mins + "m " + secs + "s");
 
-                Runnable runnable = new Runnable() {
-                    @Override
-                    public void run() {
+                handler.postDelayed(() -> updateTimer(h, etaEndTime), 1000);
 
-                        long remaining =
-                                etaEndTime - System.currentTimeMillis();
-
-                        if (remaining > 0) {
-
-                            long mins = remaining / (60 * 1000);
-                            long secs = (remaining / 1000) % 60;
-                            long hrs = mins / 60;
-
-                            mins = mins % 60;
-
-                            String etaText;
-
-                            if (hrs > 0) {
-                                etaText = hrs + " hr " + mins + " min";
-                            } else {
-                                etaText = mins + " min " + secs + " sec";
-                            }
-
-                            h.txtTimer.setText(etaText);
-
-                            timerHandler.postDelayed(this, 1000);
-
-                        } else {
-                            h.txtTimer.setText("Arriving");
-                        }
-                    }
-                };
-
-                runnable.run();
-            });
+            } else {
+                h.txtTimer.setText("Arriving");
+            }
         }
 
         @Override
@@ -338,7 +331,7 @@ public class AcceptedOrdersFragment extends Fragment {
 
             TextView txtOrderId, txtTotalPrice, txtTimer;
             ImageView btnDelete, btnAccept;
-            android.widget.Button btnReady;
+            Button btnReady;
             LinearLayout timeRow;
 
             ViewHolder(@NonNull View itemView) {
@@ -360,11 +353,6 @@ public class AcceptedOrdersFragment extends Fragment {
 
 
 
-
-
-
-
-//
 
 
 

@@ -1,176 +1,241 @@
 package com.example.paktrainfoodapp.ui.main.Restaurant;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.util.Base64;
+import android.os.Bundle;
 import android.view.*;
 import android.widget.*;
+
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.example.paktrainfoodapp.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.*;
+
 import java.util.*;
 
 public class DeliveredOrdersFragment extends Fragment {
 
     private RecyclerView recyclerView;
     private LinearLayout layoutNoOrders;
+
     private ArrayList<MenuItem> orderList;
     private OrdersAdapter adapter;
+
     private FirebaseFirestore firestore;
-    private FirebaseAuth auth;
+    private String restaurantUid;
+
+    private ListenerRegistration listener;
 
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
-                             android.os.Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater,
+                             ViewGroup container,
+                             Bundle savedInstanceState) {
 
-        View view = inflater.inflate(R.layout.fragment_restaurant_orders_accept_pending_complete, container, false);
+        View view = inflater.inflate(
+                R.layout.fragment_restaurant_orders_accept_pending_complete,
+                container,
+                false
+        );
 
         recyclerView = view.findViewById(R.id.recyclerOrders);
         layoutNoOrders = view.findViewById(R.id.layoutNoOrders);
+
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+
         orderList = new ArrayList<>();
         adapter = new OrdersAdapter(orderList);
         recyclerView.setAdapter(adapter);
 
         firestore = FirebaseFirestore.getInstance();
-        auth = FirebaseAuth.getInstance();
 
-        loadDeliveredOrders();
+        restaurantUid = FirebaseAuth.getInstance().getCurrentUser() != null
+                ? FirebaseAuth.getInstance().getCurrentUser().getUid()
+                : "";
+
         return view;
     }
 
-    private void loadDeliveredOrders() {
-        if (auth.getCurrentUser() == null) return;
-        String restId = auth.getCurrentUser().getUid();
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
-        firestore.collection("Users")
-                .document("Restaurant")
-                .collection("VerifiedRegister")
-                .document(restId)
-                .collection("Orders")
-                .whereIn("orderStatus", Arrays.asList("Assigned", "Delivered"))
-                .addSnapshotListener((querySnapshot, e) -> {
-                    if (e != null || querySnapshot == null || !isAdded()) return;
-
-                    orderList.clear();
-                    for (QueryDocumentSnapshot doc : querySnapshot) {
-                        MenuItem item = new MenuItem();
-                        item.setId(doc.getId());
-                        item.setName(doc.getString("itemName"));
-                        item.setDescription(doc.getString("itemDesc"));
-                        item.setImageUrl(doc.getString("itemImage"));
-                        item.setMeta(doc.getData());
-                        item.setDocPath(doc.getReference().getPath());
-                        item.setOrderStatus(doc.getString("orderStatus"));
-
-                        // ✅ FIX: Price handling via Variations Map
-                        Double price = doc.getDouble("itemPrice");
-                        if (price != null) {
-                            Map<String, Double> varMap = new HashMap<>();
-                            varMap.put("Default", price);
-                            item.setVariations(varMap);
-                        }
-                        orderList.add(item);
-                    }
-                    adapter.notifyDataSetChanged();
-                    updateLayout();
-                });
-    }
-
-    private void updateLayout() {
-        if (orderList.isEmpty()) {
-            recyclerView.setVisibility(View.GONE);
-            layoutNoOrders.setVisibility(View.VISIBLE);
-        } else {
-            recyclerView.setVisibility(View.VISIBLE);
-            layoutNoOrders.setVisibility(View.GONE);
+        if (!restaurantUid.isEmpty()) {
+            loadOrders();
         }
     }
 
-    private static class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.ViewHolder> {
+    // ================= LOAD ORDERS =================
+    private void loadOrders() {
+
+        if (listener != null) listener.remove();
+
+        listener = firestore.collection("Orders")
+                .whereEqualTo("restaurantUid", restaurantUid)
+                .addSnapshotListener((query, e) -> {
+
+                    if (e != null || query == null || !isAdded()) return;
+
+                    orderList.clear();
+
+                    for (QueryDocumentSnapshot doc : query) {
+
+                        String status = doc.getString("orderStatus");
+                        if (status == null) continue;
+
+                        // ONLY THESE STATUSES
+                        if (!status.equals("accepted_by_rider") &&
+                                !status.equals("arrive_rider_at_resturent") &&
+                                !status.equals("dropped") &&
+                                !status.equals("pick_up")) {
+                            continue;
+                        }
+
+                        MenuItem item = new MenuItem();
+                        item.setId(doc.getId());
+                        item.setStatus(status);
+
+                        Long time = doc.getLong("etaEndTime");
+                        item.setEtaEndTime(time != null ? time : 0L);
+
+                        Double price = doc.getDouble("totalPrice");
+                        if (price != null) {
+                            Map<String, Double> map = new HashMap<>();
+                            map.put("Total", price);
+                            item.setVariations(map);
+                        }
+
+                        orderList.add(item);
+                    }
+
+                    adapter.notifyDataSetChanged();
+
+                    boolean empty = orderList.isEmpty();
+                    recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+                    layoutNoOrders.setVisibility(empty ? View.VISIBLE : View.GONE);
+                });
+    }
+
+    // ================= ADAPTER =================
+    private class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.ViewHolder> {
+
         private final ArrayList<MenuItem> items;
 
-        OrdersAdapter(ArrayList<MenuItem> items) { this.items = items; }
+        OrdersAdapter(ArrayList<MenuItem> items) {
+            this.items = items;
+        }
 
         @NonNull
         @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.passanger_item_menu, parent, false);
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.passanger_order_item_simple, parent, false);
             return new ViewHolder(v);
         }
 
         @Override
-        public void onBindViewHolder(@NonNull ViewHolder h, int pos) {
-            MenuItem m = items.get(pos);
+        public void onBindViewHolder(@NonNull ViewHolder h, int position) {
 
-            h.name.setText(m.getName());
+            MenuItem m = items.get(position);
 
-            // ✅ FIX: Price display from Map
-            if (m.getVariations() != null && !m.getVariations().isEmpty()) {
-                h.price.setText("Rs. " + m.getVariations().values().iterator().next());
-            } else {
-                h.price.setText("Rs. 0");
+            h.txtOrderId.setText("#" + m.getId());
+
+            double total = (m.getVariations() != null && !m.getVariations().isEmpty())
+                    ? m.getVariations().values().iterator().next()
+                    : 0;
+
+            h.txtTotalPrice.setText("Rs " + total);
+
+            String status = m.getStatus();
+
+            // RESET
+            h.btnReady.setEnabled(true);
+            h.btnReady.setAlpha(1f);
+            h.btnReady.setVisibility(View.VISIBLE);
+             h.timeRow.setVisibility(View.VISIBLE);
+            // ================= STATUS LOGIC =================
+
+            switch (status) {
+
+                case "accepted_by_rider":
+                    h.btnReady.setText("Accepted By Rider");
+                    h.btnReady.setEnabled(false);
+                    h.btnReady.setAlpha(0.5f);
+                    break;
+
+                case "arrive_rider_at_resturent":
+                    h.btnReady.setText("Dropped");
+                    h.btnReady.setEnabled(true);
+                    h.btnReady.setAlpha(1f);
+                    break;
+
+                case "dropped":
+                    h.btnReady.setText("Waiting for Pickup");
+                    h.btnReady.setEnabled(false);
+                    h.btnReady.setAlpha(0.5f);
+                    break;
+
+                case "pick_up":
+                    h.itemView.setVisibility(View.GONE); // REMOVE ORDER
+                    return;
             }
 
-            h.desc.setText(m.getDescription());
+            // ================= CLICK =================
+            h.btnReady.setOnClickListener(v -> {
 
-            if (m.getImageUrl() != null) {
-                try {
-                    byte[] dec = Base64.decode(m.getImageUrl(), Base64.DEFAULT);
-                    h.image.setImageBitmap(BitmapFactory.decodeByteArray(dec, 0, dec.length));
-                } catch (Exception ignored) {}
-            }
+                String currentStatus = m.getStatus();
 
-            Button btnAddToCart = h.itemView.findViewById(R.id.btnAddCart);
-            Button btnBuyNow = h.itemView.findViewById(R.id.btnBuyNow);
-            if (btnAddToCart != null) btnAddToCart.setVisibility(View.GONE);
-            if (btnBuyNow != null) btnBuyNow.setVisibility(View.GONE);
+                Map<String, Object> map = new HashMap<>();
 
-            if (h.txtBadge != null) {
-                h.txtBadge.setVisibility(View.VISIBLE);
-                if ("Assigned".equalsIgnoreCase(m.getOrderStatus())) {
-                    h.txtBadge.setText("Assigned to Delivery");
-                    h.txtBadge.setBackgroundResource(R.drawable.selected_circle_bg);
-                } else {
-                    h.txtBadge.setText("Delivered");
-                    h.txtBadge.setBackgroundResource(R.drawable.bg_badge_green);
+                // CASE 1: rider arrived → drop order
+                if ("arrive_rider_at_resturent".equals(currentStatus)) {
+
+                    map.put("orderStatus", "dropped");
+
+                    firestore.collection("Orders")
+                            .document(m.getId())
+                            .update(map)
+                            .addOnSuccessListener(unused -> {
+
+                                m.setStatus("dropped");
+                                notifyItemChanged(h.getAdapterPosition());
+
+                                Toast.makeText(getContext(),
+                                        "Order Dropped",
+                                        Toast.LENGTH_SHORT).show();
+                            });
+
                 }
-            }
 
-            if (h.btnDelivered != null) {
-                if ("Assigned".equalsIgnoreCase(m.getOrderStatus())) {
-                    h.btnDelivered.setVisibility(View.VISIBLE);
-                    h.btnDelivered.setText("Mark as Delivered");
-                    h.btnDelivered.setOnClickListener(v -> {
-                        FirebaseFirestore.getInstance().document(m.getDocPath())
-                                .update("orderStatus", "Delivered")
-                                .addOnSuccessListener(a -> Toast.makeText(v.getContext(), "Updated", Toast.LENGTH_SHORT).show());
-                    });
-                } else {
-                    h.btnDelivered.setVisibility(View.GONE);
+                // CASE 2: already dropped → optional action or disable
+                else if ("dropped".equals(currentStatus)) {
+
+                    Toast.makeText(getContext(),
+                            "Already Dropped - Waiting for Pickup",
+                            Toast.LENGTH_SHORT).show();
                 }
-            }
+            });
         }
 
-        @Override public int getItemCount() { return items.size(); }
+        @Override
+        public int getItemCount() {
+            return items.size();
+        }
 
-        static class ViewHolder extends RecyclerView.ViewHolder {
-            TextView name, price, desc, txtBadge;
-            ImageView image;
-            Button btnDelivered;
+        class ViewHolder extends RecyclerView.ViewHolder {
 
-            ViewHolder(View v) {
-                super(v);
-                name = v.findViewById(R.id.txtName);
-                price = v.findViewById(R.id.txtPrice);
-                desc = v.findViewById(R.id.txtDesc);
-                image = v.findViewById(R.id.imgFood);
-                txtBadge = v.findViewById(R.id.txtStatusBadge);
-                btnDelivered = v.findViewById(R.id.btnDeliveredOrder);
+            TextView txtOrderId, txtTotalPrice;
+            Button btnReady;
+LinearLayout timeRow;
+            ViewHolder(@NonNull View itemView) {
+                super(itemView);
+
+                txtOrderId = itemView.findViewById(R.id.txtOrderId);
+                txtTotalPrice = itemView.findViewById(R.id.txtTotalPrice);
+                btnReady = itemView.findViewById(R.id.btnReady);
+                timeRow = itemView.findViewById(R.id.timeRow);
             }
         }
     }
