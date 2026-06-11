@@ -73,12 +73,13 @@ public class AcceptedOrdersFragment extends Fragment implements Refreshable {
 
     private void loadOrders() {
 
-        CollectionReference ref = firestore.collection("Orders");
+        Query ordersQuery = firestore.collection("Orders")
+                .whereEqualTo("passengerUid", uid);
 
         if (listenerRegistration != null)
             listenerRegistration.remove();
 
-        listenerRegistration = ref.addSnapshotListener((snap, e) -> {
+        listenerRegistration = ordersQuery.addSnapshotListener((snap, e) -> {
 
             if (e != null || snap == null) return;
 

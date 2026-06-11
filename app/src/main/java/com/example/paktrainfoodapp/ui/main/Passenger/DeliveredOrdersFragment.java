@@ -44,6 +44,7 @@ public class DeliveredOrdersFragment extends Fragment implements Refreshable {
     private FirebaseFirestore firestore;
 
     private ListenerRegistration listenerRegistration;
+    private String uid;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
@@ -62,10 +63,18 @@ public class DeliveredOrdersFragment extends Fragment implements Refreshable {
 
         orderList = new ArrayList<>();
         firestore = FirebaseFirestore.getInstance();
+        uid = FirebaseAuth.getInstance().getCurrentUser() != null
+                ? FirebaseAuth.getInstance().getCurrentUser().getUid()
+                : null;
 
         adapter = new OrdersAdapter(orderList);
         recyclerView.setAdapter(adapter);
-
+        if (uid == null) {
+            Toast.makeText(getContext(),
+                    "User not logged in",
+                    Toast.LENGTH_SHORT).show();
+            return view;
+        }
         loadDeliveredOrders();
 
         return view;
@@ -73,12 +82,13 @@ public class DeliveredOrdersFragment extends Fragment implements Refreshable {
 
     private void loadDeliveredOrders() {
 
-        CollectionReference ref = firestore.collection("Orders");
+        Query ordersQuery = firestore.collection("Orders")
+                .whereEqualTo("passengerUid", uid);
 
         if (listenerRegistration != null)
             listenerRegistration.remove();
 
-        listenerRegistration = ref.addSnapshotListener((snap, e) -> {
+        listenerRegistration = ordersQuery.addSnapshotListener((snap, e) -> {
 
             if (e != null || snap == null) return;
 
