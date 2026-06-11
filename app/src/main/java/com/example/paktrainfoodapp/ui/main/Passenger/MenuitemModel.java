@@ -1,29 +1,27 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
-public class MenuitemModel {
+import java.io.Serializable;
+import java.util.Map;
 
-    private String id, name, description, imageUrl, time, category;
+// ✅ Serializable implement kiya taake fragment mein pass ho sake
+public class MenuitemModel implements Serializable {
+
+    private String id;
+    private String name;
+    private String description;
+    private String imageUrl;
+    private String time;
+    private String category;
+    private Map<String, Double> variations;
+    private String restaurantId;
+    private String restaurantName;
+    private String restaurantCity;
+    private String restaurantUid;
+    private String orderStatus = "active";
     private double price;
-    private String restaurantId, restaurantName, restaurantCity, restaurantUid;
-    private String orderStatus = "active"; // default
-
-    public MenuitemModel() {} // required for Firestore
-
-    public MenuitemModel(String id, String name, String description, String imageUrl,
-                         double price, String time, String category,
-                         String restaurantId, String restaurantName, String restaurantCity) {
-        this.id = id;
-        this.name = name;
-        this.description = description;
-        this.imageUrl = imageUrl;
-        this.price = price;
-        this.time = time;
-        this.category = category;
-        this.restaurantId = restaurantId;
-        this.restaurantName = restaurantName;
-        this.restaurantCity = restaurantCity;
-        this.orderStatus = "active";
-    }
+    private int quantity;
+    // ✅ Firebase ke liye Empty Constructor
+    public MenuitemModel() {}
 
     // 🔹 Getters & Setters
     public String getId() { return id; }
@@ -32,14 +30,17 @@ public class MenuitemModel {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
+    public double getPrice() { return price; }
+    public void setPrice(double price) { this.price = price; }
+
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
-    public double getPrice() { return price; }
-    public void setPrice(double price) { this.price = price; }
+    public Map<String, Double> getVariations() { return variations; }
+    public void setVariations(Map<String, Double> variations) { this.variations = variations; }
 
     public String getTime() { return time; }
     public void setTime(String time) { this.time = time; }
@@ -61,8 +62,19 @@ public class MenuitemModel {
 
     public String getOrderStatus() { return orderStatus; }
     public void setOrderStatus(String orderStatus) { this.orderStatus = orderStatus; }
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
 }
 
+
+
+
+//
 
 
 

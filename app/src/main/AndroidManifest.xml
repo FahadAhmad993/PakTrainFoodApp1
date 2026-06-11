@@ -2,8 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 🌐 Internet -->
+    <!-- 🌐 Internet & Network State -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <!-- 📍 Location Permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -12,17 +14,13 @@
     <!-- 🔥 Background Location (Android 10+) -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
-    <!-- ⚡ Foreground Service -->
+    <!-- ⚡ Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-
-    <!-- 🔥 VERY IMPORTANT (Android 13+) -->
+    <!-- Android 14 (API 34) Foreground Service Specific Type -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
-    <!-- 🌐 Network -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-
-    <!-- ❌ Removed unnecessary permission (READ_GSERVICES not needed) -->
+    <!-- 🔔 FIXED: Notification Permission (Android 13+ / API 33 ke liye lazmi hai taake Foreground Service ka banner crash na kare) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -35,7 +33,7 @@
         android:theme="@style/Theme.PakTrainFoodApp"
         tools:targetApi="31">
 
-        <!-- Google Maps API -->
+        <!-- Google Maps API Key Configuration -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyCmRd6o2p8AOTeoKJHb5DqHm5ih8fzWKRg" />
@@ -44,7 +42,7 @@
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
 
-        <!-- Activities -->
+        <!-- Activities Configuration -->
         <activity
             android:name=".ui.auth.AuthActivity"
             android:exported="false" />
@@ -62,13 +60,14 @@
             android:name=".ui.main.MainActivity"
             android:exported="true" />
 
-        <!-- 🔥 LOCATION SERVICE -->
+        <!-- 🔥 LOCATION SERVICE (With Android Q+ type safety) -->
         <service
             android:name=".ui.main.Passenger.LocationService"
+            android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location" />
 
-        <!-- Firebase Messaging -->
+        <!-- Firebase Messaging Service Configuration -->
         <service
             android:name=".ui.main.MyFirebaseMessagingService"
             android:exported="false">
@@ -84,23 +83,31 @@
 
 
 
-
 <!--<?xml version="1.0" encoding="utf-8"?>-->
 <!--<manifest xmlns:android="http://schemas.android.com/apk/res/android"-->
 <!--    xmlns:tools="http://schemas.android.com/tools">-->
 
-<!--    &lt;!&ndash; Internet and Location Permissions &ndash;&gt;-->
+<!--    &lt;!&ndash; 🌐 Internet &ndash;&gt;-->
 <!--    <uses-permission android:name="android.permission.INTERNET" />-->
+
+<!--    &lt;!&ndash; 📍 Location Permissions &ndash;&gt;-->
 <!--    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />-->
-<!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />-->
 <!--    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />-->
+
+<!--    &lt;!&ndash; 🔥 Background Location (Android 10+) &ndash;&gt;-->
+<!--    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />-->
+
+<!--    &lt;!&ndash; ⚡ Foreground Service &ndash;&gt;-->
+<!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />-->
+
+<!--    &lt;!&ndash; 🔥 VERY IMPORTANT (Android 13+) &ndash;&gt;-->
+<!--    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />-->
+
+<!--    &lt;!&ndash; 🌐 Network &ndash;&gt;-->
 <!--    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />-->
 <!--    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />-->
-<!--    <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />-->
 
-
-<!--    &lt;!&ndash; For background location (optional but good for live tracking) &ndash;&gt;-->
-<!--    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />-->
+<!--    &lt;!&ndash; ❌ Removed unnecessary permission (READ_GSERVICES not needed) &ndash;&gt;-->
 
 <!--    <application-->
 <!--        android:allowBackup="true"-->
@@ -113,16 +120,16 @@
 <!--        android:theme="@style/Theme.PakTrainFoodApp"-->
 <!--        tools:targetApi="31">-->
 
-<!--        &lt;!&ndash; ✅ Add Google Play Services metadata &ndash;&gt;-->
+<!--        &lt;!&ndash; Google Maps API &ndash;&gt;-->
 <!--        <meta-data-->
 <!--            android:name="com.google.android.geo.API_KEY"-->
 <!--            android:value="AIzaSyCmRd6o2p8AOTeoKJHb5DqHm5ih8fzWKRg" />-->
 
-<!--        &lt;!&ndash; ✅ Optional but recommended to ensure Maps work properly &ndash;&gt;-->
 <!--        <meta-data-->
 <!--            android:name="com.google.android.gms.version"-->
 <!--            android:value="@integer/google_play_services_version" />-->
 
+<!--        &lt;!&ndash; Activities &ndash;&gt;-->
 <!--        <activity-->
 <!--            android:name=".ui.auth.AuthActivity"-->
 <!--            android:exported="false" />-->
@@ -140,27 +147,24 @@
 <!--            android:name=".ui.main.MainActivity"-->
 <!--            android:exported="true" />-->
 
+<!--        &lt;!&ndash; 🔥 LOCATION SERVICE &ndash;&gt;-->
 <!--        <service-->
 <!--            android:name=".ui.main.Passenger.LocationService"-->
 <!--            android:exported="false"-->
-<!--            android:foregroundServiceType="location"-->
-<!--            tools:ignore="ForegroundServicePermission">-->
-<!--        </service>-->
+<!--            android:foregroundServiceType="location" />-->
 
+<!--        &lt;!&ndash; Firebase Messaging &ndash;&gt;-->
 <!--        <service-->
-<!--            android:name="com.example.paktrainfoodapp.ui.main.MyFirebaseMessagingService"-->
+<!--            android:name=".ui.main.MyFirebaseMessagingService"-->
 <!--            android:exported="false">-->
 <!--            <intent-filter>-->
-<!--                <action android:name="com.google.firebase.MESSAGING_EVENT"/>-->
+<!--                <action android:name="com.google.firebase.MESSAGING_EVENT" />-->
 <!--            </intent-filter>-->
 <!--        </service>-->
-
-
 
 <!--    </application>-->
 
 <!--</manifest>-->
-
 
 
 

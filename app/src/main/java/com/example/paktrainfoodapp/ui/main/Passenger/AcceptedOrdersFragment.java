@@ -1,156 +1,184 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
+import android.os.Bundle;
+import android.text.TextUtils;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.*;
+
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import android.graphics.BitmapFactory;
-import android.os.Bundle;
-import android.util.Base64;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
-
+import com.bumptech.glide.Glide;
 import com.example.paktrainfoodapp.R;
+import com.example.paktrainfoodapp.utils.Refreshable;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.*;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
-public class AcceptedOrdersFragment extends Fragment {
+public class AcceptedOrdersFragment extends Fragment implements Refreshable {
 
     private RecyclerView recyclerView;
     private LinearLayout layoutNoOrders;
-    private ArrayList<MenuitemModel> orderList;
-    private AcceptedOrdersAdapter adapter;
+
+    private ArrayList<OrderModel> orderList;
+    private OrdersAdapter adapter;
+
     private FirebaseFirestore firestore;
     private String uid;
+
+    private ListenerRegistration listenerRegistration;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-        View view = inflater.inflate(R.layout.fragment_passanger_orders_accept_pending_complete, container, false);
+        View view = inflater.inflate(
+                R.layout.fragment_passanger_orders_accept_pending_complete,
+                container,
+                false
+        );
 
         recyclerView = view.findViewById(R.id.recyclerOrders);
         layoutNoOrders = view.findViewById(R.id.layoutNoOrders);
+
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         orderList = new ArrayList<>();
-        adapter = new AcceptedOrdersAdapter(orderList);
-        recyclerView.setAdapter(adapter);
-
         firestore = FirebaseFirestore.getInstance();
 
-        if (FirebaseAuth.getInstance().getCurrentUser() != null) {
-            uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        } else {
-            uid = null;
-        }
+        uid = FirebaseAuth.getInstance().getCurrentUser() != null
+                ? FirebaseAuth.getInstance().getCurrentUser().getUid()
+                : null;
+
+        adapter = new OrdersAdapter(orderList, firestore, uid, this);
+        recyclerView.setAdapter(adapter);
 
         if (uid == null) {
             recyclerView.setVisibility(View.GONE);
             layoutNoOrders.setVisibility(View.VISIBLE);
-            Toast.makeText(getContext(), "Please login first", Toast.LENGTH_SHORT).show();
             return view;
         }
 
-        loadAcceptedOrders();
+        loadOrders();
+
         return view;
     }
 
-    private void loadAcceptedOrders() {
-        firestore.collection("Users")
-                .document("Passenger")
-                .collection("OrderNow")
-                .document(uid)
-                .collection("Orders")
-                .whereEqualTo("orderStatus", "Accepted")
-                .addSnapshotListener((snap, e) -> {
+    private void loadOrders() {
 
-                    if (e != null) {
-                        Toast.makeText(getContext(), "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+        Query ordersQuery = firestore.collection("Orders")
+                .whereEqualTo("passengerUid", uid);
 
-                    orderList.clear();
+        if (listenerRegistration != null)
+            listenerRegistration.remove();
 
-                    if (snap != null) {
-                        for (DocumentSnapshot doc : snap.getDocuments()) {
-                            MenuitemModel item = new MenuitemModel();
-                            item.setId(doc.getId());
-                            item.setName(doc.getString("itemName"));
-                            item.setDescription(doc.getString("itemDesc"));
-                            item.setImageUrl(doc.getString("itemImage"));
-                            item.setPrice(doc.getDouble("itemPrice") != null ? doc.getDouble("itemPrice") : 0);
-                            orderList.add(item);
-                        }
-                    }
+        listenerRegistration = ordersQuery.addSnapshotListener((snap, e) -> {
 
-                    adapter.notifyDataSetChanged();
+            if (e != null || snap == null) return;
 
-                    if (orderList.isEmpty()) {
-                        recyclerView.setVisibility(View.GONE);
-                        layoutNoOrders.setVisibility(View.VISIBLE);
-                    } else {
-                        layoutNoOrders.setVisibility(View.GONE);
-                        recyclerView.setVisibility(View.VISIBLE);
-                    }
-                });
+            orderList.clear();
+
+            for (DocumentSnapshot doc : snap.getDocuments()) {
+
+                String status = doc.getString("orderStatus");
+
+                // ONLY ALLOWED STATUSES
+                if (!"Accepted".equalsIgnoreCase(status)
+                        && !"ready_for_delivery".equalsIgnoreCase(status)) {
+                    continue;
+                }
+
+                String orderId = doc.getId();
+
+                Double totalPrice = doc.getDouble("totalPrice");
+                double price = totalPrice != null ? totalPrice : 0;
+
+                orderList.add(new OrderModel(orderId, price, status));
+            }
+
+            adapter.notifyDataSetChanged();
+
+            boolean empty = orderList.isEmpty();
+            recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
+            layoutNoOrders.setVisibility(empty ? View.VISIBLE : View.GONE);
+        });
+    }
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+
+        if (listenerRegistration != null) {
+            listenerRegistration.remove();
+            listenerRegistration = null;
+        }
     }
 
-    //  Adapter
-    private static class AcceptedOrdersAdapter extends RecyclerView.Adapter<AcceptedOrdersAdapter.VH> {
+    // ================= ADAPTER =================
+    private static class OrdersAdapter extends RecyclerView.Adapter<OrdersAdapter.OrderViewHolder> {
 
-        private final ArrayList<MenuitemModel> items;
+        private final ArrayList<OrderModel> items;
+        private final Fragment fragment;
 
-        AcceptedOrdersAdapter(ArrayList<MenuitemModel> items) {
+        OrdersAdapter(ArrayList<OrderModel> items,
+                      FirebaseFirestore firestore,
+                      String uid,
+                      Fragment fragment) {
+
             this.items = items;
+            this.fragment = fragment;
         }
 
         @NonNull
         @Override
-        public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        public OrderViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+
             View v = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.passanger_item_menu, parent, false);
-            return new VH(v);
+                    .inflate(R.layout.passanger_order_item_simple, parent, false);
+
+            return new OrderViewHolder(v);
         }
 
         @Override
-        public void onBindViewHolder(@NonNull VH holder, int position) {
+        public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
 
-            MenuitemModel m = items.get(position);
+            OrderModel order = items.get(position);
 
-            holder.txtName.setText(m.getName());
-            holder.txtPrice.setText("Rs. " + m.getPrice());
-            holder.txtDesc.setText(m.getDescription());
+            holder.txtOrderId.setText("#" + order.getOrderId());
+            holder.txtTotalPrice.setText("Total: Rs " + order.getTotalPrice());
 
-            // Decode image safely
-            if (m.getImageUrl() != null && !m.getImageUrl().isEmpty()) {
-                try {
-                    byte[] decoded = Base64.decode(m.getImageUrl(), Base64.DEFAULT);
-                    holder.imgFood.setImageBitmap(BitmapFactory.decodeByteArray(decoded, 0, decoded.length));
-                } catch (Exception ignored) {}
+            // SHOW TIME ROW ALWAYS
+            holder.timeRow.setVisibility(View.VISIBLE);
+            holder.btnReady.setEnabled(false);
+            holder.btnReady.setAlpha(0.6f);
+
+            String status = order.getStatus();
+
+            if ("Accepted".equalsIgnoreCase(status)) {
+                holder.btnReady.setText("Preparing...");
+                holder.btnReady.setBackgroundColor(0xFFB0BEC5); // light gray
+            }
+            else if ("ready_for_delivery".equalsIgnoreCase(status)) {
+                holder.btnReady.setText("Waiting for Rider Accept Order...");
+                holder.btnReady.setBackgroundColor(0xFF90A4AE); // slightly darker gray
             }
 
-            // Hide unnecessary buttons
-            holder.btnAddCart.setVisibility(View.GONE);
-            holder.btnBuyNow.setVisibility(View.GONE);
-            holder.btnDeleteOrder.setVisibility(View.GONE);
-            holder.btnAccept.setVisibility(View.GONE);
-            holder.btnCancel.setVisibility(View.GONE);
+            // CLICK ITEM -> ONLY TOAST
+            holder.itemView.setOnClickListener(v -> {
 
-            // Show Accepted badge
-            holder.txtBadge.setVisibility(View.VISIBLE);
-            holder.txtBadge.setText("Accepted");
-            holder.txtBadge.setBackgroundResource(R.drawable.bg_badge_green);
+                int pos = holder.getAdapterPosition();
+                if (pos == RecyclerView.NO_POSITION) return;
+
+                Toast.makeText(v.getContext(),
+                        "Order ID: " + order.getOrderId(),
+                        Toast.LENGTH_SHORT).show();
+            });
         }
 
         @Override
@@ -158,30 +186,34 @@ public class AcceptedOrdersFragment extends Fragment {
             return items.size();
         }
 
-        static class VH extends RecyclerView.ViewHolder {
+        static class OrderViewHolder extends RecyclerView.ViewHolder {
 
-            ImageView imgFood;
-            TextView txtName, txtPrice, txtDesc, txtBadge;
-            Button btnAddCart, btnBuyNow, btnDeleteOrder, btnAccept, btnCancel;
+            TextView txtOrderId, txtTotalPrice;
+            LinearLayout timeRow;
+            Button btnReady;
 
-            VH(View v) {
-                super(v);
-                imgFood = v.findViewById(R.id.imgFood);
-                txtName = v.findViewById(R.id.txtName);
-                txtPrice = v.findViewById(R.id.txtPrice);
-                txtDesc = v.findViewById(R.id.txtDesc);
-                txtBadge = v.findViewById(R.id.txtStatusBadge);
+            OrderViewHolder(@NonNull View itemView) {
+                super(itemView);
 
-                btnAddCart = v.findViewById(R.id.btnAddCart);
-                btnBuyNow = v.findViewById(R.id.btnBuyNow);
-                btnDeleteOrder = v.findViewById(R.id.btnDeleteOrder);
-                btnAccept = v.findViewById(R.id.btnAcceptOrder);
-                btnCancel = v.findViewById(R.id.btnCancelOrder);
+                txtOrderId = itemView.findViewById(R.id.txtOrderId);
+                txtTotalPrice = itemView.findViewById(R.id.txtTotalPrice);
+
+                timeRow = itemView.findViewById(R.id.timeRow);
+                btnReady = itemView.findViewById(R.id.btnReady);
             }
         }
     }
+
+    @Override
+    public void refreshData() {
+
+        recyclerView.setVisibility(View.GONE);
+
+        orderList.clear();
+        adapter.notifyDataSetChanged();
+
+        loadOrders();
+
+        recyclerView.postDelayed(() -> recyclerView.setVisibility(View.VISIBLE), 1000);
+    }
 }
-
-
-
-

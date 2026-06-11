@@ -8,8 +8,8 @@
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="@color/teal_700"
-        android:padding="11dp">
+        android:background="@color/purple_light"
+        android:padding="10dp">
 
         <TextView
             android:text="← Back"

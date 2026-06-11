@@ -11,7 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import com.example.paktrainfoodapp.R;
-
+//
 public class restaurant_LoadFragment extends Fragment {
 
     private LinearLayout btnMenu, btnOrder, btnDashboard, btnDelivery, btnProfile;
@@ -114,6 +114,20 @@ public class restaurant_LoadFragment extends Fragment {
         for (TextView text : texts) {
             text.setTextColor(getResources().getColor(R.color.gray));
             text.setTypeface(null, android.graphics.Typeface.NORMAL);
+        }
+    }
+    // Eh method restaurant_LoadFragment class de vich rakho
+    public void navigateFromDashboard(String target) {
+        switch (target) {
+            case "menu":
+                btnMenu.performClick(); // btnMenu da click trigger karo
+                break;
+            case "delivery":
+                btnDelivery.performClick();
+                break;
+            case "profile":
+                btnProfile.performClick();
+                break;
         }
     }
 }

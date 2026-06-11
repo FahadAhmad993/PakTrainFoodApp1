@@ -64,3 +64,4 @@ public class DeliveryNotificationFragment extends Fragment {
         return inflater.inflate(R.layout.fragment_delivery_notification, container, false);
     }
 }
+//

@@ -5,16 +5,23 @@
     android:padding="12dp"
     android:background="#FAFAFA">
 
-    <!-- ✅ RecyclerView for Active Orders -->
+    <ProgressBar
+        android:id="@+id/progressRefresh"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_gravity="center"
+        android:visibility="gone"/>
+
+    <!-- ✔ SAME RecyclerView ID STYLE -->
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler_delivery_Orders"
+        android:id="@+id/recyclerOrders"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone" />
+        android:visibility="gone"/>
 
-    <!-- ✅ Empty State (No Orders Yet) -->
+    <!-- Empty State -->
     <LinearLayout
-        android:id="@+id/layoutNo_delivery_Orders"
+        android:id="@+id/layoutNoOrders"
         android:orientation="vertical"
         android:gravity="center"
         android:layout_width="match_parent"
@@ -23,8 +30,8 @@
         <ImageView
             android:layout_width="120dp"
             android:layout_height="120dp"
-            android:src="@drawable/deliveryboy"
-            android:contentDescription="No Orders" />
+            android:contentDescription="No Orders"
+            android:src="@drawable/deliveryboy" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -34,19 +41,8 @@
             android:textColor="@color/gray"
             android:layout_marginTop="12dp" />
     </LinearLayout>
+
 </LinearLayout>
 
 
-
-
-    <!--<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"-->
-    <!--    android:layout_width="match_parent"-->
-    <!--    android:layout_height="match_parent"-->
-    <!--    android:padding="8dp">-->
-
-    <!--    <androidx.recyclerview.widget.RecyclerView-->
-    <!--        android:id="@+id/recyclerOrders"-->
-    <!--        android:layout_width="match_parent"-->
-    <!--        android:layout_height="match_parent"-->
-    <!--        android:scrollbars="vertical" />-->
-    <!--</LinearLayout>-->
+<!---->

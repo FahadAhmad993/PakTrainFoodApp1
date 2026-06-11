@@ -1,9 +1,6 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
-import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,7 +12,9 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.example.paktrainfoodapp.R;
+import com.example.paktrainfoodapp.CartManager;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -26,7 +25,6 @@ public class Station_Menu_Fragment extends Fragment {
 
     private ImageView imgRestaurant;
     private TextView txtRestaurantName, txtRestaurantInfo;
-    private ImageButton btnBack;
     private RecyclerView recyclerView;
     private ProgressBar progressBar;
 
@@ -34,21 +32,17 @@ public class Station_Menu_Fragment extends Fragment {
     private MenuAdapter adapter;
     private FirebaseFirestore db;
 
-    // Restaurant data
     private String restaurantId = "";
     private String restaurantName = "";
-    private String restaurantImageBase64 = "";
+    private String restaurantImageUrl = "";
     private String restaurantInfo = "";
     private String mealStation = "";
 
-    // Route data (IMPORTANT FOR ORDER SYSTEM)
     private String trainId = "";
     private String routeId = "";
     private String fromStation = "";
     private String toStation = "";
     private String trainName = "";
-
-    public Station_Menu_Fragment() {}
 
     @Nullable
     @Override
@@ -61,11 +55,11 @@ public class Station_Menu_Fragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
         imgRestaurant = view.findViewById(R.id.img_restaurant);
         txtRestaurantName = view.findViewById(R.id.tv_restaurant_name);
         txtRestaurantInfo = view.findViewById(R.id.tv_restaurant_info);
-        btnBack = view.findViewById(R.id.btnBack);
         recyclerView = view.findViewById(R.id.recyclerMenu);
         progressBar = view.findViewById(R.id.progressBar);
 
@@ -75,18 +69,18 @@ public class Station_Menu_Fragment extends Fragment {
 
         db = FirebaseFirestore.getInstance();
 
-        // ================= GET DATA =================
+        // ================= ARGUMENTS =================
         Bundle args = getArguments();
         if (args != null) {
 
             restaurantId = args.getString("RESTAURANT_UID", "");
             restaurantName = args.getString("RESTAURANT_NAME", "");
-            restaurantImageBase64 = args.getString("RESTAURANT_IMAGE", "");
+            restaurantImageUrl = args.getString("RESTAURANT_IMAGE_URL",
+                    args.getString("RESTAURANT_IMAGE", ""));
             restaurantInfo = args.getString("RESTAURANT_INFO", "Fast Food");
 
             mealStation = args.getString("MEAL_STATION", "");
 
-            // 🔥 ROUTE DATA
             trainId = args.getString("TRAIN_ID", "");
             routeId = args.getString("ROUTE_ID", "");
             fromStation = args.getString("FROM", "");
@@ -94,28 +88,16 @@ public class Station_Menu_Fragment extends Fragment {
             trainName = args.getString("TRAIN_NAME", "");
         }
 
-        // ================= UI =================
         txtRestaurantName.setText(restaurantName);
         txtRestaurantInfo.setText(restaurantInfo);
 
-        if (restaurantImageBase64 != null && !restaurantImageBase64.isEmpty()) {
-            try {
-                byte[] decoded = Base64.decode(restaurantImageBase64, Base64.DEFAULT);
-                Bitmap bitmap = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
-                imgRestaurant.setImageBitmap(bitmap);
-            } catch (Exception e) {
-                imgRestaurant.setImageResource(R.drawable.station3);
-            }
-        } else {
-            imgRestaurant.setImageResource(R.drawable.station3);
-        }
+        Glide.with(this)
+                .load(restaurantImageUrl)
+                .placeholder(R.drawable.station3)
+                .error(R.drawable.station3)
+                .centerCrop()
+                .into(imgRestaurant);
 
-        // ================= BACK =================
-        btnBack.setOnClickListener(v ->
-                requireActivity().getSupportFragmentManager().popBackStack()
-        );
-
-        // ================= LOAD MENU =================
         loadMenuItemsByRestaurantId(restaurantId);
 
         // ================= ITEM CLICK =================
@@ -123,42 +105,103 @@ public class Station_Menu_Fragment extends Fragment {
 
             @Override
             public void onAddToCart(MenuitemModel item) {
-                Toast.makeText(requireContext(),
-                        item.getName() + " added to cart",
-                        Toast.LENGTH_SHORT).show();
-            }
 
-            @Override
-            public void onDeleteOrder(MenuitemModel item) {}
+                if (getParentFragment() instanceof Passenger_Fragment_Loader) {
+
+                    Passenger_Fragment_Loader loader =
+                            (Passenger_Fragment_Loader) getParentFragment();
+
+                    Passanger_ItemDetailsFragment detailsFragment =
+                            Passanger_ItemDetailsFragment.newInstance(
+                                    item,
+                                    restaurantId,
+                                    restaurantName,
+                                    mealStation,
+                                    trainId,
+                                    routeId,
+                                    fromStation,
+                                    toStation,
+                                    trainName
+                            );
+
+                    loader.getChildFragmentManager()
+                            .beginTransaction()
+                            .hide(loader.getActiveFragment())
+                            .add(R.id.fragment_holder, detailsFragment)
+                            .addToBackStack(null)
+                            .commit();
+                }
+            }
 
             @Override
             public void onBuyNow(MenuitemModel item) {
 
+                if (!isAdded()) return;
+
+                double price = 0.0;
+
+                if (item.getVariations() != null &&
+                        !item.getVariations().isEmpty()) {
+
+                    price = item.getVariations()
+                            .values()
+                            .iterator()
+                            .next();
+                }
+
+                // 🔥 FIX: cartItems ADD KARO (IMPORTANT)
+                ArrayList<CartItem> cartItems = new ArrayList<>();
+
+                CartItem tempItem = new CartItem(
+                        item.getId(),
+                        restaurantId,
+                        restaurantName,
+                        item.getName(),
+                        price,
+                        1,
+                        "",
+                        item.getImageUrl(),
+                        item.getDescription(),
+                        mealStation,
+                        trainId,
+                        routeId,
+                        fromStation,
+                        toStation,
+                        trainName
+                );
+
+                cartItems.add(tempItem);
+
                 OrderNowFragment dialog = OrderNowFragment.newInstance(
                         item.getName(),
-                        item.getPrice(),
+                        price,
                         item.getDescription(),
                         restaurantName,
                         restaurantId,
                         item.getImageUrl(),
                         mealStation,
-
-                        // 🔥 FULL ROUTE CONTEXT PASS
                         trainId,
                         routeId,
                         fromStation,
-                        toStation
+                        toStation,
+                        cartItems   // 🔥 FIXED HERE
                 );
 
                 dialog.show(getParentFragmentManager(), "OrderNowDialog");
             }
+
+            @Override
+            public void onDeleteOrder(MenuitemModel item) {}
         });
+
+        CartUIHelper.setupCartBar(view, this);
     }
 
     // ================= LOAD MENU =================
     private void loadMenuItemsByRestaurantId(String restaurantId) {
 
-        progressBar.setVisibility(View.VISIBLE);
+        if (progressBar != null) progressBar.setVisibility(View.VISIBLE);
+
         itemList.clear();
 
         db.collection("Users")
@@ -169,9 +212,12 @@ public class Station_Menu_Fragment extends Fragment {
                 .get()
                 .addOnSuccessListener(menuItems -> {
 
+                    if (!isAdded() || getContext() == null) return;
+
                     for (QueryDocumentSnapshot doc : menuItems) {
 
                         MenuitemModel item = doc.toObject(MenuitemModel.class);
+
                         item.setId(doc.getId());
                         item.setRestaurantId(restaurantId);
                         item.setRestaurantName(restaurantName);
@@ -180,21 +226,13 @@ public class Station_Menu_Fragment extends Fragment {
                     }
 
                     adapter.notifyDataSetChanged();
-                    progressBar.setVisibility(View.GONE);
 
-                    if (itemList.isEmpty()) {
-                        Toast.makeText(requireContext(),
-                                "No menu items found",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    progressBar.setVisibility(View.GONE);
-                    Toast.makeText(requireContext(),
-                            "Error: " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
+                    if (progressBar != null)
+                        progressBar.setVisibility(View.GONE);
                 });
     }
 }
 
+
+//
 

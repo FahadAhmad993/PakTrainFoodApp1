@@ -1,90 +1,156 @@
 package com.example.paktrainfoodapp.ui.main.Delivery;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.util.Base64;
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.paktrainfoodapp.R;
 
-import java.util.List;
+import java.util.ArrayList;
 
-public class DeliveryBoyAdapter extends RecyclerView.Adapter<DeliveryBoyAdapter.ViewHolder> {
+public class DeliveryBoyAdapter extends RecyclerView.Adapter<DeliveryBoyAdapter.VH> {
 
-    private List<DeliveryBoyModel> deliveryBoyList;
+    public interface OnActionClick {
+        void onItemClick(DeliveryBoyModel order, int position);
+        void onAccept(DeliveryBoyModel order, int position);
+        void onButtonClick(DeliveryBoyModel order, int position);
+    }
 
-    public DeliveryBoyAdapter(List<DeliveryBoyModel> deliveryBoyList) {
-        this.deliveryBoyList = deliveryBoyList;
+    private final Context context;
+    private final ArrayList<DeliveryBoyModel> list;
+    private final OnActionClick listener;
+
+    public DeliveryBoyAdapter(Context context,
+                              ArrayList<DeliveryBoyModel> list,
+                              OnActionClick listener) {
+        this.context = context;
+        this.list = list;
+        this.listener = listener;
     }
 
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_delivery_boy, parent, false);
-        return new ViewHolder(view);
+    public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context)
+                .inflate(R.layout.passanger_order_item_simple, parent, false);
+        return new VH(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        DeliveryBoyModel boy = deliveryBoyList.get(position);
+    public void onBindViewHolder(@NonNull VH h, int position) {
 
-        //  Set Name, Phone, Email and Image
-        holder.tvName.setText(boy.getName() != null && !boy.getName().isEmpty() ? boy.getName() : "DeliveryBoy");
-        holder.tvPhone.setText(boy.getPhone() != null ? boy.getPhone() : "N/A");
-        holder.tvEmail.setText(boy.getEmail() != null ? boy.getEmail() : "N/A");
+        DeliveryBoyModel order = list.get(position);
 
-        //  Load Image  base64 string
-        if (boy.getImageBase64() != null && !boy.getImageBase64().isEmpty()) {
-            try {
-                byte[] decodedString = Base64.decode(boy.getImageBase64(), Base64.DEFAULT);
-                Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
-                holder.imgDeliveryBoy.setImageBitmap(decodedByte);
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
-                holder.imgDeliveryBoy.setImageResource(R.drawable.ic_food_placeholder);
-            }
-        } else {
-            holder.imgDeliveryBoy.setImageResource(R.drawable.ic_food_placeholder);
+        h.txtOrderId.setText("#" + order.getOrderId());
+        h.txtTotalPrice.setText("Rs " + order.getTotalPrice());
+
+        String status = order.getStatus();
+
+        // RESET
+        h.btnAccept.setVisibility(View.GONE);
+        h.btnReady.setVisibility(View.GONE);
+        h.timeRow.setVisibility(View.VISIBLE);
+        h.txtTimer.setVisibility(View.VISIBLE);
+
+        // ================= READY =================
+        if ("ready_for_delivery".equals(status)) {
+
+            h.btnAccept.setVisibility(View.VISIBLE);
+            h.txtTimer.setVisibility(View.GONE);
+
+            // 🟢 ICON CLICK
+            h.btnAccept.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onAccept(order, h.getAdapterPosition());
+                }
+            });
+
+            // 🟡 ITEM CLICK
+            h.itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onItemClick(order, h.getAdapterPosition());
+                }
+            });
         }
 
-        //  Button Click Event
-        holder.btnDeliverOrder.setOnClickListener(v ->
-                Toast.makeText(v.getContext(),
-                        "Deliver Order clicked for " + (boy.getName() != null ? boy.getName() : "DeliveryBoy"),
-                        Toast.LENGTH_SHORT).show()
-        );
-    }
+        // ================= ACCEPTED =================
+        else if ("accepted_by_rider".equals(status)) {
 
+            h.btnReady.setVisibility(View.VISIBLE);
+            h.btnReady.setText("ARRIVED");
+            h.btnReady.setEnabled(true);
+            h.btnReady.setAlpha(1f);
+            h.txtTimer.setVisibility(View.GONE);
+
+        }
+
+        // ================= ARRIVED =================
+        else if ("arrive_rider_at_resturent".equals(status)) {
+
+            h.btnReady.setVisibility(View.VISIBLE);
+            h.btnReady.setText("READY FOR PICKUP");
+            h.btnReady.setEnabled(false);
+            h.btnReady.setAlpha(0.4f);
+            h.txtTimer.setVisibility(View.GONE);
+        }
+
+        // ================= DROPPED =================
+        else if ("dropped".equals(status)) {
+
+            h.btnReady.setVisibility(View.VISIBLE);
+            h.btnReady.setText("PICK UP");
+            h.btnReady.setEnabled(true);
+            h.btnReady.setAlpha(1f);
+            h.txtTimer.setVisibility(View.GONE);
+        }
+
+        // 🔵 BUTTON CLICK (ONLY ONE LISTENER)
+        h.btnReady.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onButtonClick(order, h.getAdapterPosition());
+            }
+        });
+    }
     @Override
     public int getItemCount() {
-        return deliveryBoyList.size();
+        return list.size();
     }
 
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvName, tvPhone, tvEmail;
-        ImageView imgDeliveryBoy;
-        Button btnDeliverOrder;
+    static class VH extends RecyclerView.ViewHolder {
 
-        public ViewHolder(@NonNull View itemView) {
+        ImageView btnAccept;
+        TextView txtOrderId, txtTotalPrice, txtTimer;
+        Button btnReady;
+        View timeRow;
+
+        VH(@NonNull View itemView) {
             super(itemView);
-            tvName = itemView.findViewById(R.id.tvName);
-            tvPhone = itemView.findViewById(R.id.tvPhone);
-            tvEmail = itemView.findViewById(R.id.tvEmail);
-            imgDeliveryBoy = itemView.findViewById(R.id.imgDeliveryBoy);
-            btnDeliverOrder = itemView.findViewById(R.id.btnDeliverOrder);
+
+            txtOrderId = itemView.findViewById(R.id.txtOrderId);
+            txtTotalPrice = itemView.findViewById(R.id.txtTotalPrice);
+
+            btnReady = itemView.findViewById(R.id.btnReady);
+            btnAccept = itemView.findViewById(R.id.btnAccept);
+
+            timeRow = itemView.findViewById(R.id.timeRow);
+            txtTimer = itemView.findViewById(R.id.txtTimer);
         }
     }
 }
+
+
+
+
+
+
+
 
 
 
