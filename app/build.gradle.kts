@@ -49,6 +49,7 @@ dependencies {
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-functions:21.0.0")
 
     // Other
     implementation(libs.credentials)
@@ -59,6 +60,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.github.bumptech.glide:glide:4.16.0")
     implementation(libs.swiperefreshlayout)
+    implementation(libs.firebase.appcheck.debug)
     annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
 
     implementation("com.google.maps.android:android-maps-utils:2.3.0")
@@ -72,8 +74,10 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("com.stripe:stripe-android:20.+")
+
 
 }
 
-//
+
 

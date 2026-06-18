@@ -15,9 +15,11 @@ import com.example.paktrainfoodapp.ui.main.Passenger.Passenger_Fragment_Loader;
 import com.example.paktrainfoodapp.ui.main.Restaurant.restaurant_LoadFragment;
 import com.example.paktrainfoodapp.ui.main.Restaurant.restaurant_registers;
 import com.example.paktrainfoodapp.utils.PrefManager;
+import com.google.firebase.appcheck.FirebaseAppCheck;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -30,6 +32,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
+        FirebaseAppCheck.getInstance()
+                .installAppCheckProviderFactory(
+                        DebugAppCheckProviderFactory.getInstance()
+                );
+
 
         prefManager = new PrefManager(this);
         auth = FirebaseAuth.getInstance();
@@ -202,6 +211,7 @@ public class MainActivity extends AppCompatActivity {
                 .replace(R.id.main_container, fragment)
                 .commitAllowingStateLoss();
     }
+
 }
 
 

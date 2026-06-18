@@ -3,7 +3,7 @@ package com.example.paktrainfoodapp.ui.main.Passenger;
 
 import java.io.Serializable;
 
-public class CartItem {
+public class CartItem implements Serializable{
 
     private String itemId;
     private String restaurantId;
