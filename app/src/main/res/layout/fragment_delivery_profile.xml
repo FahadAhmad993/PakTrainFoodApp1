@@ -55,7 +55,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/setting"/>
+            android:src="@drawable/settingicon"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -73,7 +73,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/ic_profile"/>
+            android:src="@drawable/shareicon"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -91,7 +91,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/ic_profile"/>
+            android:src="@drawable/infoicon"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -108,5 +108,5 @@
         android:text="Logout"
         android:layout_marginTop="24dp"
         android:backgroundTint="@color/green"
-        android:textColor="@color/white"/>
+        android:textColor="@color/white" />
 </LinearLayout>
