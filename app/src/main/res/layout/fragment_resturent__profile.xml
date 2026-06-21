@@ -13,7 +13,7 @@
         android:layout_width="120dp"
         android:layout_height="120dp"
         android:layout_gravity="center_horizontal"
-        android:src="@drawable/ic_profile"
+        android:src="@drawable/edit_info"
         android:scaleType="centerCrop"
         android:clipToOutline="true"
         android:background="@drawable/selected_circle_bg"
@@ -55,7 +55,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/ic_browse_menu"/>
+            android:src="@drawable/ic_menu"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -91,7 +91,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/ic_profile"/>
+            android:src="@drawable/folder"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

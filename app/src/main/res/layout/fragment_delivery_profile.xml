@@ -14,7 +14,7 @@
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:layout_gravity="center_horizontal"
-        android:src="@drawable/ic_profile"
+        android:src="@drawable/edit_info"
         android:scaleType="centerCrop"
         android:clipToOutline="true"
         android:background="@drawable/selected_circle_bg"
@@ -55,7 +55,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/settingicon"/>
+            android:src="@drawable/ic_settings"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -73,7 +73,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/shareicon"/>
+            android:src="@drawable/share"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -91,7 +91,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@drawable/infoicon"/>
+            android:src="@drawable/shield"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
