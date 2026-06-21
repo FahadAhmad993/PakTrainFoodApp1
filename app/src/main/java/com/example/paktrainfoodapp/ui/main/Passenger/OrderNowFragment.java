@@ -4,15 +4,12 @@ import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.text.TextUtils;
-import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -24,7 +21,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.DialogFragment;
 
@@ -33,35 +29,36 @@ import com.example.paktrainfoodapp.CartManager;
 import com.example.paktrainfoodapp.R;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.functions.FirebaseFunctions;
+import com.stripe.android.paymentsheet.PaymentSheet;
+import com.stripe.android.paymentsheet.PaymentSheetResult;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 public class OrderNowFragment extends DialogFragment {
+
+    private ImageView imgFood;
+    private TextView txtName, txtPrice, txtDesc, txtRest;
+    private EditText edtTicket, edtCoach, edtSeat, edtTrain, edtPhone;
+    private Button btnOrderNow, btnCancel;
+
+    private String passengerUid;
+    private PaymentSheet paymentSheet;
+    private String clientSecret;
+
+    private double subtotalVal = 0;
+    private double deliveryFeeVal = 0;
+    private double adminFeeVal = 0;
+    private double totalAmount = 0;
 
     private static final String ARG_NAME = "itemName";
     private static final String ARG_PRICE = "itemPrice";
     private static final String ARG_DESC = "itemDesc";
     private static final String ARG_REST = "itemRest";
-    private static final String ARG_REST_UID = "restaurantUid";
     private static final String ARG_IMAGE = "itemImage";
-    private static final String ARG_MEAL_STATION = "mealStation";
-    private static final String ARG_TRAIN_ID = "trainId";
-    private static final String ARG_ROUTE_ID = "routeId";
-    private static final String ARG_FROM = "from";
-    private static final String ARG_TO = "to";
     private static final String ARG_CART_ITEMS = "cartItems";
-
-    private ImageView imgFood;
-    private TextView txtName, txtPrice, txtDesc, txtRest;
-
-    private EditText edtTicket, edtCoach, edtSeat, edtTrain, edtPhone;
-    private Button btnOrderNow, btnCancel;
-
-    private String passengerUid = "";
-    private String orderId = "";
-    private String mealStation = "";
-
 
     public static OrderNowFragment newInstance(
             String name,
@@ -75,7 +72,10 @@ public class OrderNowFragment extends DialogFragment {
             String routeId,
             String from,
             String to,
-            ArrayList<CartItem> cartItems
+            ArrayList<CartItem> cartItems,
+            double sub,
+            double del,
+            double adm
     ) {
 
         OrderNowFragment fragment = new OrderNowFragment();
@@ -85,15 +85,17 @@ public class OrderNowFragment extends DialogFragment {
         args.putDouble(ARG_PRICE, price);
         args.putString(ARG_DESC, desc);
         args.putString(ARG_REST, rest);
-        args.putString(ARG_REST_UID, restUid);
         args.putString(ARG_IMAGE, image);
-        args.putString(ARG_MEAL_STATION, mealStation);
-        args.putString(ARG_TRAIN_ID, trainId);
-        args.putString(ARG_ROUTE_ID, routeId);
-        args.putString(ARG_FROM, from);
-        args.putString(ARG_TO, to);
 
         args.putSerializable(ARG_CART_ITEMS, cartItems);
+
+        args.putDouble("subtotal", sub);
+        args.putDouble("deliveryFee", del);
+        args.putDouble("adminFee", adm);
+
+        args.putDouble("total", sub + del + adm);
+
+        args.putString("restaurantId", restUid);
 
         fragment.setArguments(args);
         return fragment;
@@ -101,10 +103,9 @@ public class OrderNowFragment extends DialogFragment {
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull android.view.LayoutInflater inflater,
+    public View onCreateView(@NonNull LayoutInflater inflater,
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
-
         return inflater.inflate(R.layout.fragment_passanger_order_now_form, container, false);
     }
 
@@ -127,6 +128,8 @@ public class OrderNowFragment extends DialogFragment {
         btnOrderNow = view.findViewById(R.id.btnOrderNow);
         btnCancel = view.findViewById(R.id.btnCancel);
 
+        paymentSheet = new PaymentSheet(this, this::onPaymentResult);
+
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
             Toast.makeText(getContext(), "Login Required", Toast.LENGTH_SHORT).show();
             dismiss();
@@ -136,197 +139,282 @@ public class OrderNowFragment extends DialogFragment {
         passengerUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
         Bundle args = getArguments();
-        if (args == null) return;
+        if (args != null) {
 
-        ArrayList<CartItem> cartItems =
-                (ArrayList<CartItem>) args.getSerializable(ARG_CART_ITEMS);
+            txtName.setText(args.getString(ARG_NAME, ""));
+            txtPrice.setText("Rs. " + args.getDouble(ARG_PRICE, 0));
+            txtDesc.setText(args.getString(ARG_DESC, ""));
+            txtRest.setText(args.getString(ARG_REST, ""));
 
-        String name = args.getString(ARG_NAME, "");
-        double price = args.getDouble(ARG_PRICE, 0);
-        String desc = args.getString(ARG_DESC, "");
-        String rest = args.getString(ARG_REST, "");
-        String restUid = args.getString(ARG_REST_UID, "");
-        String image = args.getString(ARG_IMAGE, "");
+            subtotalVal = args.getDouble("subtotal", 0);
+            deliveryFeeVal = args.getDouble("deliveryFee", 0);
+            adminFeeVal = args.getDouble("adminFee", 0);
+            totalAmount = args.getDouble("total", 0);
 
-        mealStation = args.getString(ARG_MEAL_STATION, "");
-
-        String trainId = args.getString(ARG_TRAIN_ID, "");
-        String routeId = args.getString(ARG_ROUTE_ID, "");
-        String from = args.getString(ARG_FROM, "");
-        String to = args.getString(ARG_TO, "");
-
-        txtName.setText(name);
-        txtPrice.setText("Rs. " + price);
-        txtDesc.setText(desc);
-        txtRest.setText(rest);
-
-        if (!TextUtils.isEmpty(image)) {
-            Glide.with(this)
-                    .load(image)
-                    .placeholder(R.drawable.ic_food_placeholder)
-                    .into(imgFood);
+            String image = args.getString(ARG_IMAGE, "");
+            if (!TextUtils.isEmpty(image)) {
+                Glide.with(this)
+                        .load(image)
+                        .placeholder(R.drawable.ic_food_placeholder)
+                        .into(imgFood);
+            }
         }
 
         btnCancel.setOnClickListener(v -> dismiss());
 
         btnOrderNow.setOnClickListener(v -> {
+            String ticket = edtTicket.getText().toString().trim();
+            String coach = edtCoach.getText().toString().trim();
+            String seat = edtSeat.getText().toString().trim();
+            String train = edtTrain.getText().toString().trim();
+            String phone = edtPhone.getText().toString().trim();
 
-            if (!hasLocationPermission()) {
-                ActivityCompat.requestPermissions(requireActivity(),
-                        new String[]{
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION
-                        }, 1001);
+            if (TextUtils.isEmpty(ticket) ||
+                    TextUtils.isEmpty(coach) ||
+                    TextUtils.isEmpty(seat) ||
+                    TextUtils.isEmpty(train) ||
+                    TextUtils.isEmpty(phone)) {
+
+                Toast.makeText(
+                        getContext(),
+                        "Please fill all fields",
+                        Toast.LENGTH_SHORT
+                ).show();
+
+                return;
+            }
+            if (!hasLocationPermission() || !isLocationEnabled()) {
+                Toast.makeText(getContext(), "Permission/Location Error", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            if (!isLocationEnabled()) {
-                showLocationDialog();
-                return;
-            }
-
-            placeOrder(name, price, desc, rest, restUid, image,
-                    trainId, routeId, from, to, cartItems);
+            startPaymentFlow();
         });
     }
 
-    private void placeOrder(
-            String name, double price, String desc,
-            String rest, String restUid, String image,
-            String trainId, String routeId, String from, String to,
-            ArrayList<CartItem> cartItems
-    ) {
+    private void startPaymentFlow() {
 
-        String ticket = edtTicket.getText().toString().trim();
-        String coach = edtCoach.getText().toString().trim();
-        String seat = edtSeat.getText().toString().trim();
-        String trainName = edtTrain.getText().toString().trim();
-        String phone = edtPhone.getText().toString().trim();
+        btnOrderNow.setEnabled(false);
+        btnOrderNow.setText("Processing...");
 
-        if (TextUtils.isEmpty(ticket) || TextUtils.isEmpty(coach)
-                || TextUtils.isEmpty(seat) || TextUtils.isEmpty(trainName)
-                || TextUtils.isEmpty(phone)) {
-            Toast.makeText(getContext(), "Fill All Fields", Toast.LENGTH_SHORT).show();
-            return;
+        if (getArguments() == null) return;
+
+        totalAmount = getArguments().getDouble("total", 0);
+
+        HashMap<String, Object> data = new HashMap<>();
+        data.put("amount", totalAmount);
+
+        FirebaseFunctions.getInstance("us-central1")
+                .getHttpsCallable("createPaymentIntent")
+                .call(data)
+                .addOnSuccessListener(result -> {
+
+                    Map<String, Object> response = (Map<String, Object>) result.getData();
+                    clientSecret = (String) response.get("clientSecret");
+
+                    if (clientSecret != null) {
+
+                        PaymentSheet.Configuration config =
+                                new PaymentSheet.Configuration("Train Food App");
+
+                        paymentSheet.presentWithPaymentIntent(clientSecret, config);
+
+                    } else {
+                        Toast.makeText(getContext(), "Payment error", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(e -> {
+
+                    btnOrderNow.setEnabled(true);
+                    btnOrderNow.setText("Order Now");
+
+                    Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+    }
+
+    private void onPaymentResult(PaymentSheetResult result) {
+
+        btnOrderNow.setEnabled(true);
+        btnOrderNow.setText("Order Now");
+
+        if (result instanceof PaymentSheetResult.Completed) {
+
+            saveOrderToFirestore();
+            showSuccessDialog();
+
+        } else if (result instanceof PaymentSheetResult.Failed) {
+
+            Toast.makeText(getContext(), "Payment Failed", Toast.LENGTH_SHORT).show();
+
+        } else {
+
+            Toast.makeText(getContext(), "Payment Cancelled", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void saveOrderToFirestore() {
+        String ticketNumber = edtTicket.getText().toString().trim();
+        String coachNumber = edtCoach.getText().toString().trim();
+        String seatNumber = edtSeat.getText().toString().trim();
+        String phone = edtPhone.getText().toString().trim();
+        String trainNumber = edtTrain.getText().toString().trim();
+
 
         FirebaseFirestore db = FirebaseFirestore.getInstance();
-        orderId = db.collection("Orders").document().getId();
 
-        HashMap<String, Object> order = new HashMap<>();
-        double restaurantTotal = 0;
-        ArrayList<HashMap<String, Object>> list = new ArrayList<>();
+        String orderId = db.collection("Orders")
+                .document()
+                .getId();
 
-        if (cartItems != null) {
-            for (CartItem c : cartItems) {
-                // DEBUG CHECK
-                Log.d("REST_CHECK",
-                        "cartRest = " + c.getRestaurantId()
-                                + " currentRest = " + restUid);
-                if (c.getRestaurantId() != null
-                        && c.getRestaurantId().equals(restUid)) {
-                    HashMap<String, Object> m = new HashMap<>();
-                    m.put("itemId", c.getItemId());
-                    m.put("name", c.getName());
-                    m.put("price", c.getPrice());
-                    m.put("quantity", c.getQuantity());
-                    m.put("size", c.getSize());
-                    m.put("restaurantId", c.getRestaurantId());
-                    m.put("restaurantName", c.getRestaurantName());
-                    m.put("imageUrl", c.getImageUrl());
-                    m.put("description", c.getDescription());
-                    list.add(m);
+        Map<String, Object> orderData = new HashMap<>();
 
-                    restaurantTotal +=
-                            c.getPrice() * c.getQuantity();
+        // Basic Order Info
 
-                }
+        orderData.put("orderId", orderId);
+        orderData.put("passengerUid", passengerUid);
+        orderData.put("orderStatus", "Active");
+        orderData.put("timestamp", System.currentTimeMillis());
+
+        // Passenger Details
+
+        orderData.put("ticketNumber", ticketNumber);
+        orderData.put("coachNumber", coachNumber);
+        orderData.put("seatNumber", seatNumber);
+        orderData.put("phone", phone);
+        orderData.put("trainId", trainNumber);
+
+        // Restaurant
+
+        orderData.put("restaurantId",
+                getArguments().getString("restaurantId"));
+
+        orderData.put("restaurantName",
+                txtRest.getText().toString());
+
+        // Cart Items
+
+        ArrayList<CartItem> cartItems =
+                (ArrayList<CartItem>)
+                        getArguments().getSerializable(ARG_CART_ITEMS);
+
+        ArrayList<Map<String, Object>> itemsList =
+                new ArrayList<>();
+
+        if (cartItems != null && !cartItems.isEmpty()) {
+
+            CartItem first = cartItems.get(0);
+
+            // Order Level Fields
+
+            orderData.put("mealStation",
+                    first.getMealStation());
+
+            orderData.put("fromStation",
+                    first.getFromStation());
+
+            orderData.put("toStation",
+                    first.getToStation());
+
+            orderData.put("routeId",
+                    first.getRouteId());
+
+            orderData.put("trainName",
+                    first.getTrainName());
+
+            orderData.put("totalItems",
+                    cartItems.size());
+
+            // Only Item Data
+
+            for (CartItem item : cartItems) {
+
+                Map<String, Object> map =
+                        new HashMap<>();
+
+                map.put("itemId",
+                        item.getItemId());
+
+                map.put("name",
+                        item.getName());
+
+                map.put("description",
+                        item.getDescription());
+
+                map.put("imageUrl",
+                        item.getImageUrl());
+
+                map.put("price",
+                        item.getPrice());
+
+                map.put("quantity",
+                        item.getQuantity());
+
+                map.put("size",
+                        item.getSize());
+
+                map.put("restaurantId",
+                        item.getRestaurantId());
+
+                map.put("restaurantName",
+                        item.getRestaurantName());
+
+                itemsList.add(map);
             }
         }
 
-        order.put("cartItems", list);
-        order.put("totalItems", list.size());
-        order.put("totalPrice", restaurantTotal);
+        orderData.put("cartItems", itemsList);
 
-        order.put("orderId", orderId);
-        order.put("restaurantName", rest);
-        order.put("restaurantUid", restUid);
-        order.put("passengerUid", passengerUid);
-        order.put("trainName", trainName);
-        order.put("trainId", trainId);
-        order.put("routeId", routeId);
-        order.put("fromStation", from);
-        order.put("toStation", to);
-        order.put("mealStation", mealStation);
-        order.put("ticketNumber", ticket);
-        order.put("coachNumber", coach);
-        order.put("seatNumber", seat);
-        order.put("phone", phone);
-        order.put("orderStatus", "Active");
-        order.put("timestamp", System.currentTimeMillis());
+        // Pricing
 
-        btnOrderNow.setEnabled(false);
+        orderData.put("subtotal", subtotalVal);
+        orderData.put("deliveryFee", deliveryFeeVal);
+        orderData.put("adminFee", adminFeeVal);
+        orderData.put("totalPrice", totalAmount);
+
+        // Save Order
 
         db.collection("Orders")
                 .document(orderId)
-                .set(order)
+                .set(orderData)
                 .addOnSuccessListener(unused -> {
 
-                    // ==============================
-                    // START LOCATION SERVICE
-                    // ==============================
-
-                    Intent serviceIntent =
-                            new Intent(requireContext(), LocationService.class);
-
-                    serviceIntent.putExtra("orderId", orderId);
-                    serviceIntent.putExtra("passengerUid", passengerUid);
-                    serviceIntent.putExtra("station", mealStation);
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        requireContext().startForegroundService(serviceIntent);
-                    } else {
-                        requireContext().startService(serviceIntent);
-                    }
-
-                    Toast.makeText(getContext(),
-                            "Order Placed Successfully",
-                            Toast.LENGTH_LONG).show();
-
                     CartManager.clear();
+
+                    Toast.makeText(
+                            getContext(),
+                            "Order Placed Successfully",
+                            Toast.LENGTH_SHORT
+                    ).show();
+
                     dismiss();
                 })
                 .addOnFailureListener(e -> {
-                    btnOrderNow.setEnabled(true);
-                    Toast.makeText(getContext(),
-                            "Order Failed: " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
+
+                    Toast.makeText(
+                            getContext(),
+                            e.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
                 });
+    }
+
+    private void showSuccessDialog() {
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Success")
+                .setMessage("Order placed successfully")
+                .setPositiveButton("OK", (d, w) -> dismiss())
+                .show();
     }
 
     private boolean hasLocationPermission() {
         return ContextCompat.checkSelfPermission(requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED;
+                Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
     private boolean isLocationEnabled() {
-        LocationManager lm = (LocationManager) requireActivity()
-                .getSystemService(Context.LOCATION_SERVICE);
-
-        return lm != null &&
-                (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
-                        || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER));
-    }
-
-    private void showLocationDialog() {
-        new AlertDialog.Builder(requireContext())
-                .setTitle("Enable Location")
-                .setMessage("Location required for delivery tracking")
-                .setPositiveButton("Open Settings", (d, w) ->
-                        startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)))
-                .setNegativeButton("Cancel", null)
-                .show();
+        LocationManager lm = (LocationManager) requireActivity().getSystemService(Context.LOCATION_SERVICE);
+        return lm != null && (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER));
     }
 
     @Override
@@ -334,15 +422,11 @@ public class OrderNowFragment extends DialogFragment {
         super.onStart();
 
         Dialog dialog = getDialog();
-        if (dialog != null && dialog.getWindow() != null && getActivity() != null) {
+        if (dialog != null && dialog.getWindow() != null) {
 
-            DisplayMetrics dm = new DisplayMetrics();
-            getActivity().getWindowManager().getDefaultDisplay().getMetrics(dm);
+            int width = (int) (getResources().getDisplayMetrics().widthPixels * 0.95);
 
-            dialog.getWindow().setLayout(
-                    (int) (dm.widthPixels * 0.95),
-                    WindowManager.LayoutParams.WRAP_CONTENT
-            );
+            dialog.getWindow().setLayout(width, WindowManager.LayoutParams.WRAP_CONTENT);
         }
     }
 }
@@ -359,381 +443,3 @@ public class OrderNowFragment extends DialogFragment {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//package com.example.paktrainfoodapp.ui.main.Passenger;
-//
-//import android.Manifest;
-//import android.app.AlertDialog;
-//import android.app.Dialog;
-//import android.content.Context;
-//import android.content.Intent;
-//import android.content.pm.PackageManager;
-//import android.location.LocationManager;
-//import android.os.Build;
-//import android.os.Bundle;
-//import android.provider.Settings;
-//import android.text.TextUtils;
-//import android.util.DisplayMetrics;
-//import android.util.Log;
-//import android.view.View;
-//import android.view.ViewGroup;
-//import android.view.WindowManager;
-//import android.widget.Button;
-//import android.widget.EditText;
-//import android.widget.ImageView;
-//import android.widget.TextView;
-//import android.widget.Toast;
-//
-//import androidx.annotation.NonNull;
-//import androidx.annotation.Nullable;
-//import androidx.core.app.ActivityCompat;
-//import androidx.core.content.ContextCompat;
-//import androidx.fragment.app.DialogFragment;
-//
-//import com.bumptech.glide.Glide;
-//import com.example.paktrainfoodapp.CartManager;
-//import com.example.paktrainfoodapp.R;
-//import com.google.firebase.auth.FirebaseAuth;
-//import com.google.firebase.firestore.FirebaseFirestore;
-//
-//import java.util.ArrayList;
-//import java.util.HashMap;
-//
-//public class OrderNowFragment extends DialogFragment {
-//
-//    private static final String ARG_NAME = "itemName";
-//    private static final String ARG_PRICE = "itemPrice";
-//    private static final String ARG_DESC = "itemDesc";
-//    private static final String ARG_REST = "itemRest";
-//    private static final String ARG_REST_UID = "restaurantUid";
-//    private static final String ARG_IMAGE = "itemImage";
-//    private static final String ARG_MEAL_STATION = "mealStation";
-//    private static final String ARG_TRAIN_ID = "trainId";
-//    private static final String ARG_ROUTE_ID = "routeId";
-//    private static final String ARG_FROM = "from";
-//    private static final String ARG_TO = "to";
-//    private static final String ARG_CART_ITEMS = "cartItems";
-//
-//    private ImageView imgFood;
-//    private TextView txtName, txtPrice, txtDesc, txtRest;
-//
-//    private EditText edtTicket, edtCoach, edtSeat, edtTrain, edtPhone;
-//    private Button btnOrderNow, btnCancel;
-//
-//    private String passengerUid = "";
-//    private String orderId = "";
-//    private String mealStation = "";
-//
-//    public static OrderNowFragment newInstance(
-//            String name,
-//            double price,
-//            String desc,
-//            String rest,
-//            String restUid,
-//            String image,
-//            String mealStation,
-//            String trainId,
-//            String routeId,
-//            String from,
-//            String to,
-//            ArrayList<CartItem> cartItems
-//    ) {
-//
-//        OrderNowFragment fragment = new OrderNowFragment();
-//        Bundle args = new Bundle();
-//
-//        args.putString(ARG_NAME, name);
-//        args.putDouble(ARG_PRICE, price);
-//        args.putString(ARG_DESC, desc);
-//        args.putString(ARG_REST, rest);
-//        args.putString(ARG_REST_UID, restUid);
-//        args.putString(ARG_IMAGE, image);
-//        args.putString(ARG_MEAL_STATION, mealStation);
-//        args.putString(ARG_TRAIN_ID, trainId);
-//        args.putString(ARG_ROUTE_ID, routeId);
-//        args.putString(ARG_FROM, from);
-//        args.putString(ARG_TO, to);
-//
-//        args.putSerializable(ARG_CART_ITEMS, cartItems);
-//
-//        fragment.setArguments(args);
-//        return fragment;
-//    }
-//
-//    @Nullable
-//    @Override
-//    public View onCreateView(@NonNull android.view.LayoutInflater inflater,
-//                             @Nullable ViewGroup container,
-//                             @Nullable Bundle savedInstanceState) {
-//
-//        return inflater.inflate(R.layout.fragment_passanger_order_now_form, container, false);
-//    }
-//
-//    @Override
-//    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-//        super.onViewCreated(view, savedInstanceState);
-//
-//        imgFood = view.findViewById(R.id.imgFood);
-//        txtName = view.findViewById(R.id.txtName);
-//        txtPrice = view.findViewById(R.id.txtPrice);
-//        txtDesc = view.findViewById(R.id.txtDesc);
-//        txtRest = view.findViewById(R.id.txtRest);
-//
-//        edtTicket = view.findViewById(R.id.edtTicket);
-//        edtCoach = view.findViewById(R.id.edtCoach);
-//        edtSeat = view.findViewById(R.id.edtSeat);
-//        edtTrain = view.findViewById(R.id.edtTrain);
-//        edtPhone = view.findViewById(R.id.edtPhone);
-//
-//        btnOrderNow = view.findViewById(R.id.btnOrderNow);
-//        btnCancel = view.findViewById(R.id.btnCancel);
-//
-//        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-//            Toast.makeText(getContext(), "Login Required", Toast.LENGTH_SHORT).show();
-//            dismiss();
-//            return;
-//        }
-//
-//        passengerUid = FirebaseAuth.getInstance().getCurrentUser().getUid();
-//
-//        Bundle args = getArguments();
-//        if (args == null) return;
-//
-//        ArrayList<CartItem> cartItems =
-//                (ArrayList<CartItem>) args.getSerializable(ARG_CART_ITEMS);
-//
-//        String name = args.getString(ARG_NAME, "");
-//        double price = args.getDouble(ARG_PRICE, 0);
-//        String desc = args.getString(ARG_DESC, "");
-//        String rest = args.getString(ARG_REST, "");
-//        String restUid = args.getString(ARG_REST_UID, "");
-//        String image = args.getString(ARG_IMAGE, "");
-//
-//        mealStation = args.getString(ARG_MEAL_STATION, "");
-//
-//        String trainId = args.getString(ARG_TRAIN_ID, "");
-//        String routeId = args.getString(ARG_ROUTE_ID, "");
-//        String from = args.getString(ARG_FROM, "");
-//        String to = args.getString(ARG_TO, "");
-//
-//        txtName.setText(name);
-//        txtPrice.setText("Rs. " + price);
-//        txtDesc.setText(desc);
-//        txtRest.setText(rest);
-//
-//        if (!TextUtils.isEmpty(image)) {
-//            Glide.with(this)
-//                    .load(image)
-//                    .placeholder(R.drawable.ic_food_placeholder)
-//                    .into(imgFood);
-//        }
-//
-//        btnCancel.setOnClickListener(v -> dismiss());
-//
-//        btnOrderNow.setOnClickListener(v -> {
-//
-//            if (!hasLocationPermission()) {
-//                ActivityCompat.requestPermissions(requireActivity(),
-//                        new String[]{
-//                                Manifest.permission.ACCESS_FINE_LOCATION,
-//                                Manifest.permission.ACCESS_COARSE_LOCATION
-//                        }, 1001);
-//                return;
-//            }
-//
-//            if (!isLocationEnabled()) {
-//                showLocationDialog();
-//                return;
-//            }
-//
-//            placeOrder(name, price, desc, rest, restUid, image,
-//                    trainId, routeId, from, to, cartItems);
-//        });
-//    }
-//
-//    private void placeOrder(
-//            String name, double price, String desc,
-//            String rest, String restUid, String image,
-//            String trainId, String routeId, String from, String to,
-//            ArrayList<CartItem> cartItems
-//    ) {
-//
-//        String ticket = edtTicket.getText().toString().trim();
-//        String coach = edtCoach.getText().toString().trim();
-//        String seat = edtSeat.getText().toString().trim();
-//        String trainName = edtTrain.getText().toString().trim();
-//        String phone = edtPhone.getText().toString().trim();
-//
-//        if (TextUtils.isEmpty(ticket) || TextUtils.isEmpty(coach)
-//                || TextUtils.isEmpty(seat) || TextUtils.isEmpty(trainName)
-//                || TextUtils.isEmpty(phone)) {
-//            Toast.makeText(getContext(), "Fill All Fields", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//
-//        FirebaseFirestore db = FirebaseFirestore.getInstance();
-//        orderId = db.collection("Orders").document().getId();
-//
-//        HashMap<String, Object> order = new HashMap<>();
-//        double restaurantTotal = 0;
-//        ArrayList<HashMap<String, Object>> list = new ArrayList<>();
-//
-//        if (cartItems != null) {
-//            for (CartItem c : cartItems) {
-//                // DEBUG CHECK
-//                Log.d("REST_CHECK",
-//                        "cartRest = " + c.getRestaurantId()
-//                                + " currentRest = " + restUid);
-//                if (c.getRestaurantId() != null
-//                        && c.getRestaurantId().equals(restUid)) {
-//                    HashMap<String, Object> m = new HashMap<>();
-//                    m.put("itemId", c.getItemId());
-//                    m.put("name", c.getName());
-//                    m.put("price", c.getPrice());
-//                    m.put("quantity", c.getQuantity());
-//                    m.put("size", c.getSize());
-//                    m.put("restaurantId", c.getRestaurantId());
-//                    m.put("restaurantName", c.getRestaurantName());
-//                    m.put("imageUrl", c.getImageUrl());
-//                    m.put("description", c.getDescription());
-//                    list.add(m);
-//
-//                    restaurantTotal +=
-//                            c.getPrice() * c.getQuantity();
-//
-//                }
-//            }
-//        }
-//
-//        order.put("cartItems", list);
-//        order.put("totalItems", list.size());
-//        order.put("totalPrice", restaurantTotal);
-//
-//        order.put("orderId", orderId);
-//        order.put("restaurantName", rest);
-//        order.put("restaurantUid", restUid);
-//        order.put("passengerUid", passengerUid);
-//        order.put("trainName", trainName);
-//        order.put("trainId", trainId);
-//        order.put("routeId", routeId);
-//        order.put("fromStation", from);
-//        order.put("toStation", to);
-//        order.put("mealStation", mealStation);
-//        order.put("ticketNumber", ticket);
-//        order.put("coachNumber", coach);
-//        order.put("seatNumber", seat);
-//        order.put("phone", phone);
-//        order.put("orderStatus", "Active");
-//        order.put("timestamp", System.currentTimeMillis());
-//
-//        btnOrderNow.setEnabled(false);
-//
-//        db.collection("Orders")
-//                .document(orderId)
-//                .set(order)
-//                .addOnSuccessListener(unused -> {
-//
-//                    // ==============================
-//                    // START LOCATION SERVICE
-//                    // ==============================
-//
-//                    Intent serviceIntent =
-//                            new Intent(requireContext(), LocationService.class);
-//
-//                    serviceIntent.putExtra("orderId", orderId);
-//                    serviceIntent.putExtra("passengerUid", passengerUid);
-//                    serviceIntent.putExtra("station", mealStation);
-//
-//                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-//                        requireContext().startForegroundService(serviceIntent);
-//                    } else {
-//                        requireContext().startService(serviceIntent);
-//                    }
-//
-//                    Toast.makeText(getContext(),
-//                            "Order Placed Successfully",
-//                            Toast.LENGTH_LONG).show();
-//
-//                    CartManager.clear();
-//                    dismiss();
-//                })
-//                .addOnFailureListener(e -> {
-//                    btnOrderNow.setEnabled(true);
-//                    Toast.makeText(getContext(),
-//                            "Order Failed: " + e.getMessage(),
-//                            Toast.LENGTH_LONG).show();
-//                });
-//    }
-//
-//    private boolean hasLocationPermission() {
-//        return ContextCompat.checkSelfPermission(requireContext(),
-//                Manifest.permission.ACCESS_FINE_LOCATION)
-//                == PackageManager.PERMISSION_GRANTED;
-//    }
-//
-//    private boolean isLocationEnabled() {
-//        LocationManager lm = (LocationManager) requireActivity()
-//                .getSystemService(Context.LOCATION_SERVICE);
-//
-//        return lm != null &&
-//                (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
-//                        || lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER));
-//    }
-//
-//    private void showLocationDialog() {
-//        new AlertDialog.Builder(requireContext())
-//                .setTitle("Enable Location")
-//                .setMessage("Location required for delivery tracking")
-//                .setPositiveButton("Open Settings", (d, w) ->
-//                        startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)))
-//                .setNegativeButton("Cancel", null)
-//                .show();
-//    }
-//
-//    @Override
-//    public void onStart() {
-//        super.onStart();
-//
-//        Dialog dialog = getDialog();
-//        if (dialog != null && dialog.getWindow() != null && getActivity() != null) {
-//
-//            DisplayMetrics dm = new DisplayMetrics();
-//            getActivity().getWindowManager().getDefaultDisplay().getMetrics(dm);
-//
-//            dialog.getWindow().setLayout(
-//                    (int) (dm.widthPixels * 0.95),
-//                    WindowManager.LayoutParams.WRAP_CONTENT
-//            );
-//        }
-//    }
-//}
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//

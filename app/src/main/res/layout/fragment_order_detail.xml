@@ -43,6 +43,7 @@
         android:layout_weight="6"
         android:padding="16dp">
 
+        <!-- IMPORTANT: ONLY ONE CHILD -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

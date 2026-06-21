@@ -1,5 +1,6 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
+import android.app.ActionBar;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -41,29 +42,23 @@ public class CartUIHelper {
                     new ArrayList<>(CartManager.getCartItems());
 
             if (items.isEmpty()) {
-                Toast.makeText(fragment.getContext(), "Cart Empty", Toast.LENGTH_SHORT).show();
+
+                Toast.makeText(
+                        fragment.getContext(),
+                        "Cart Empty",
+                        Toast.LENGTH_SHORT
+                ).show();
+
                 return;
             }
 
-            CartItem first = items.get(0);
+            OrderSummaryFragment dialog =
+                    OrderSummaryFragment.newInstance(items);
 
-            OrderNowFragment dialog =
-                    OrderNowFragment.newInstance(
-                            first.getName(),
-                            CartManager.getTotalPrice(),
-                            "Multiple Items",
-                            first.getRestaurantName(),
-                            first.getRestaurantId(),
-                            first.getImageUrl(),
-                            first.getMealStation(),
-                            first.getTrainId(),
-                            first.getRouteId(),
-                            first.getFromStation(),
-                            first.getToStation(),
-                            items
-                    );
-
-            dialog.show(fragment.getParentFragmentManager(), "OrderNow");
+            dialog.show(
+                    fragment.getParentFragmentManager(),
+                    "OrderSummary"
+            );
         });
     }
 
@@ -86,10 +81,5 @@ public class CartUIHelper {
 
 
 
-
-
-
-
-//
 
 
