@@ -6,7 +6,6 @@
     android:orientation="vertical"
     android:background="#F8F9FA">
 
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="56dp"
@@ -41,14 +40,32 @@
                 android:paddingBottom="24dp"
                 android:paddingTop="16dp">
 
-                <ImageView
-                    android:id="@+id/img_profile"
+                <RelativeLayout
                     android:layout_width="100dp"
                     android:layout_height="100dp"
-                    android:background="@drawable/selected_circle_bg"
-                    android:clipToOutline="true"
-                    android:scaleType="centerCrop"
-                    android:src="@drawable/edit_info" />
+                    android:layout_gravity="center_horizontal">
+
+                    <ImageView
+                        android:id="@+id/img_profile"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:background="@drawable/selected_circle_bg"
+                        android:clipToOutline="true"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/profile" />
+
+                    <ImageView
+                        android:id="@+id/btn_edit_profile"
+                        android:layout_width="26dp"
+                        android:layout_height="26dp"
+                        android:layout_alignParentBottom="true"
+                        android:layout_alignParentEnd="true"
+                        android:layout_margin="2dp"
+                        android:background="@android:color/white"
+                        android:elevation="4dp"
+                        android:padding="5dp"
+                        android:src="@drawable/edit" />
+                </RelativeLayout>
 
                 <TextView
                     android:id="@+id/txt_name"
@@ -88,6 +105,12 @@
                     </LinearLayout>
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
+                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/wallet"/>
+                        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="Wallet" android:textSize="16sp"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
                         <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_order"/>
                         <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="16dp" android:text="My Orders" android:textSize="16sp"/>
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textStyle="bold"/>
@@ -100,7 +123,6 @@
                     </LinearLayout>
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
-
                         <ImageView
                             android:layout_width="24dp"
                             android:layout_height="22dp"
@@ -124,7 +146,6 @@
                     android:padding="8dp">
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
-
                         <ImageView
                             android:layout_width="22dp"
                             android:layout_height="23dp"
@@ -158,7 +179,3 @@
         </LinearLayout>
     </ScrollView>
 </LinearLayout>
-
-
-
-<!---->

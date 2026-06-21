@@ -1,16 +1,19 @@
 package com.example.paktrainfoodapp.ui.main.Restaurant;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -25,9 +28,13 @@ import com.google.firebase.firestore.FirebaseFirestore;
 public class resturent_ProfileFragment extends Fragment {
 
     private ImageView profileImage;
+    private ImageView btnEditProfile; // Pencil button reference
     private TextView txtName, txtEmail;
-    private Button btnLogout;
+    private TextView btnLogout; // Type badal kar TextView kar diya list row click handle karne ke liye
     private static final String TAG = "ProfileFragment";
+
+    // Gallery result click callback trigger
+    private ActivityResultLauncher<String> galleryLauncher;
 
     @Nullable
     @Override
@@ -40,13 +47,40 @@ public class resturent_ProfileFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         profileImage = view.findViewById(R.id.img_profile);
+        btnEditProfile = view.findViewById(R.id.btn_edit_profile); // Initialized pencil button
         txtName = view.findViewById(R.id.txt_name);
         txtEmail = view.findViewById(R.id.txt_email);
-        btnLogout = view.findViewById(R.id.btn_logout);
+        btnLogout = view.findViewById(R.id.btn_logout); // Reference map
+
+        // 🖼️ Gallery pick handling aur circle crop preview setup
+        galleryLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                new ActivityResultCallback<Uri>() {
+                    @Override
+                    public void onActivityResult(Uri uri) {
+                        if (uri != null && isAdded() && getActivity() != null) {
+                            if (profileImage != null) {
+                                Glide.with(requireActivity())
+                                        .load(uri)
+                                        .circleCrop()
+                                        .into(profileImage);
+                            }
+                            Toast.makeText(getContext(), "Restaurant Image Changed!", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
+
+        // Pencil click par phone gallery open karne ka trigger
+        if (btnEditProfile != null) {
+            btnEditProfile.setOnClickListener(v -> galleryLauncher.launch("image/*"));
+        }
 
         loadUserData();
 
-        btnLogout.setOnClickListener(v -> performLogout());
+        if (btnLogout != null) {
+            btnLogout.setOnClickListener(v -> performLogout());
+        }
     }
 
     private void performLogout() {
@@ -82,20 +116,20 @@ public class resturent_ProfileFragment extends Fragment {
                     if (!isAdded() || getContext() == null) return;
 
                     if (snapshot.exists()) {
-                        txtName.setText(snapshot.getString("restaurantName"));
-                        txtEmail.setText(snapshot.getString("email"));
+                        if (txtName != null) txtName.setText(snapshot.getString("restaurantName"));
+                        if (txtEmail != null) txtEmail.setText(snapshot.getString("email"));
 
                         String imageUrl = snapshot.getString("licenseImageUrl");
-                        if (imageUrl != null && !imageUrl.isEmpty()) {
-                            Glide.with(requireContext()).load(imageUrl).into(profileImage);
+                        if (imageUrl != null && !imageUrl.isEmpty() && profileImage != null) {
+                            Glide.with(requireContext())
+                                    .load(imageUrl)
+                                    .circleCrop()
+                                    .into(profileImage);
                         }
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error: ", e); // Logcat mein error yahan dikhega
+                    Log.e(TAG, "Error: ", e);
                 });
     }
 }
-
-//
-

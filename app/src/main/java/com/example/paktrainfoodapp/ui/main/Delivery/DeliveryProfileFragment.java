@@ -1,15 +1,18 @@
 package com.example.paktrainfoodapp.ui.main.Delivery;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -24,12 +27,15 @@ import com.google.firebase.firestore.FirebaseFirestore;
 public class DeliveryProfileFragment extends Fragment {
 
     private ImageView profileImage;
+    private ImageView btnEditProfile;
     private TextView txtName, txtEmail;
-    private Button btnLogout;
+    private TextView btnLogout; // Badla hua type Card List ke mutabiq
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
     private PrefManager prefManager;
+
+    private ActivityResultLauncher<String> galleryLauncher;
 
     @Nullable
     @Override
@@ -44,41 +50,64 @@ public class DeliveryProfileFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         profileImage = view.findViewById(R.id.img_delivery_profile);
+        btnEditProfile = view.findViewById(R.id.btn_edit_profile);
         txtName = view.findViewById(R.id.txt_delivery_name);
         txtEmail = view.findViewById(R.id.txt_delivery_email);
-        btnLogout = view.findViewById(R.id.btn_delivery_logout);
+        btnLogout = view.findViewById(R.id.btn_delivery_logout); // Matching ID text reference
 
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         prefManager = new PrefManager(requireContext());
 
+        galleryLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                new ActivityResultCallback<Uri>() {
+                    @Override
+                    public void onActivityResult(Uri uri) {
+                        if (uri != null && isAdded() && getActivity() != null) {
+                            if (profileImage != null) {
+                                Glide.with(requireActivity())
+                                        .load(uri)
+                                        .circleCrop()
+                                        .into(profileImage);
+                            }
+                            Toast.makeText(getContext(), "Delivery Rider Image Changed!", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
+
+        if (btnEditProfile != null) {
+            btnEditProfile.setOnClickListener(v -> galleryLauncher.launch("image/*"));
+        }
+
         if (mAuth.getCurrentUser() != null) {
             loadUserData();
         } else {
-            txtName.setText("Guest");
-            txtEmail.setText("");
+            if (txtName != null) txtName.setText("Guest");
+            if (txtEmail != null) txtEmail.setText("");
         }
 
-        btnLogout.setOnClickListener(v -> {
-            if (mAuth != null) {
-                mAuth.signOut();
-            }
-
-            // 🔄 Shared Preferences se login state reset karein
-            prefManager.setLogin(false);
-
-            if (getActivity() != null) {
-                getActivity().finish();
-            }
-
-            startActivity(new Intent(getContext(), Splash.class));
-        });
+        if (btnLogout != null) {
+            btnLogout.setOnClickListener(v -> {
+                if (mAuth != null) {
+                    mAuth.signOut();
+                }
+                if (prefManager != null) {
+                    prefManager.setLogin(false);
+                }
+                if (getActivity() != null) {
+                    getActivity().finish();
+                }
+                startActivity(new Intent(getContext(), Splash.class));
+            });
+        }
     }
 
     private void loadUserData() {
+        if (mAuth.getCurrentUser() == null) return;
         String uid = mAuth.getCurrentUser().getUid();
 
-        // 🔄 Path aapki naye sequential verification architecture ke mutabiq "VerifiedRegister" par set kar diya hai
         db.collection("Users")
                 .document("Delivery")
                 .collection("VerifiedRegister")
@@ -86,36 +115,29 @@ public class DeliveryProfileFragment extends Fragment {
                 .get()
                 .addOnSuccessListener(snapshot -> {
                     if (isAdded() && snapshot.exists()) {
-
-                        // Firestore se clean fields fetch karein
                         String deliveryBoyName = snapshot.getString("name");
                         String email = snapshot.getString("email");
-
-                        // 🖼️ ImgBB sequential upload se jo URL "cnicFrontImageUrl" ya "licenseImageUrl" banna tha, woh yahan call hoga
                         String imageUrl = snapshot.getString("cnicFrontImageUrl");
 
-                        txtName.setText(deliveryBoyName != null ? deliveryBoyName : "No Name");
-                        txtEmail.setText(email != null ? email : "No Email");
+                        if (txtName != null) txtName.setText(deliveryBoyName != null ? deliveryBoyName : "No Name");
+                        if (txtEmail != null) txtEmail.setText(email != null ? email : "No Email");
 
-
-                        if (imageUrl != null && !imageUrl.isEmpty()) {
+                        if (imageUrl != null && !imageUrl.isEmpty() && profileImage != null) {
                             Glide.with(this)
                                     .load(imageUrl)
-                                    .placeholder(R.drawable.ic_launcher_background) // Default temporary image
-                                    .error(R.drawable.ic_launcher_background)       // Failure image
+                                    .placeholder(R.drawable.edit_info)
+                                    .error(R.drawable.edit_info)
+                                    .circleCrop()
                                     .into(profileImage);
                         }
                     }
                 })
                 .addOnFailureListener(e -> {
                     if (isAdded()) {
-                        txtName.setText("Error loading data");
-                        txtEmail.setText("");
+                        if (txtName != null) txtName.setText("Error loading data");
+                        if (txtEmail != null) txtEmail.setText("");
                         Toast.makeText(getContext(), "Failed to load profile: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 }
-
-//
-

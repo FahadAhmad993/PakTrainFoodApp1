@@ -1,6 +1,7 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -9,6 +10,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -23,13 +27,15 @@ import com.google.firebase.firestore.FirebaseFirestore;
 public class ProfileFragment extends Fragment {
 
     private ImageView profileImage;
-    // txt_name aur txt_email ke liye IDs XML mein honi chahiye,
-    // agar nahi hain to XML mein add karein
+    private ImageView btnEditProfile; // Pencil button declaration
     private TextView txtName, txtEmail, btnLogout;
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
     private PrefManager prefManager;
+
+    // Gallery se image select karne k liye launcher
+    private ActivityResultLauncher<String> galleryLauncher;
 
     public ProfileFragment() {}
 
@@ -45,17 +51,46 @@ public class ProfileFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // UI Components Initialize (XML IDs ke mutabik)
+        // UI Components Initialize
         profileImage = view.findViewById(R.id.img_profile);
-        txtName = view.findViewById(R.id.txt_name);      // Ensure XML has android:id="@+id/txt_name"
-        txtEmail = view.findViewById(R.id.txt_email);    // Ensure XML has android:id="@+id/txt_email"
-        btnLogout = view.findViewById(R.id.btn_logout);  // Ye aapka TextView hai
+        btnEditProfile = view.findViewById(R.id.btn_edit_profile); // Initialized pencil icon
+        txtName = view.findViewById(R.id.txt_name);
+        txtEmail = view.findViewById(R.id.txt_email);
+        btnLogout = view.findViewById(R.id.btn_logout);
 
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         prefManager = new PrefManager(requireContext());
 
-        // Check if views are null to prevent crash
+        // 1. Gallery Result Launcher Setup
+        galleryLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                new ActivityResultCallback<Uri>() {
+                    @Override
+                    public void onActivityResult(Uri uri) {
+                        if (uri != null && isAdded() && getActivity() != null) {
+                            // Selected image ko usi waqt screen pr view karwane k liye
+                            Glide.with(requireActivity())
+                                    .load(uri)
+                                    .circleCrop()
+                                    .into(profileImage);
+
+                            // Yahan click hone k bad agar bad me Firebase Storage
+                            // me push krna ho to code add kiya ja skta ha.
+                            Toast.makeText(getContext(), "Image Changed!", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
+
+        // 2. Pencil button click handle kiya
+        if (btnEditProfile != null) {
+            btnEditProfile.setOnClickListener(v -> {
+                galleryLauncher.launch("image/*"); // Gallery open karega
+            });
+        }
+
+        // Baqi aapka original unchanged logic code
         if (txtName != null && txtEmail != null && btnLogout != null) {
 
             if (mAuth.getCurrentUser() != null) {
@@ -100,7 +135,7 @@ public class ProfileFragment extends Fragment {
                         if (imageUrl != null && !imageUrl.isEmpty() && profileImage != null) {
                             Glide.with(requireActivity())
                                     .load(imageUrl)
-                                    .placeholder(R.drawable.ic_profile)
+                                    .placeholder(R.drawable.edit_info)
                                     .circleCrop()
                                     .into(profileImage);
                         }
@@ -108,6 +143,3 @@ public class ProfileFragment extends Fragment {
                 });
     }
 }
-
-
-//
