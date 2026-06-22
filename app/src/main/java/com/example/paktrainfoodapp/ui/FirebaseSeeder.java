@@ -92,8 +92,10 @@ public class FirebaseSeeder {
         addStation("Dina", 33.0267, 73.5932);
         addStation("GujarKhan", 33.2552, 73.3043);
         addStation("Rawalpindi", 33.6007, 73.0679);
+        addStation("Margalla", 33.6897, 72.8215);
         addStation("GolraSharif", 33.6936, 72.9478);
         addStation("AttockCity", 33.7667, 72.3605);
+        addStation("Chakwal", 32.9326, 72.8622);
 
         // ================== Hazara / KP ==================
         addStation("SargodhaJn", 32.0836, 72.6711);
@@ -168,6 +170,102 @@ public class FirebaseSeeder {
                 station("HyderabadJn", 12),
                 station("KarachiCantt", 13)
         ));
+        addRoute("route_green_line", "Islamabad → Karachi", Arrays.asList(
+                station("Margalla", 0),
+                station("Rawalpindi", 1),
+                station("LahoreJn", 2),
+                station("KhanewalJn", 3),
+                station("Bahawalpur", 4),
+                station("RohriJn", 5),
+                station("HyderabadJn", 6),
+                station("KarachiCantt", 7)
+        ));
+
+        addRoute("route_tezzgam", "Karachi → Rawalpindi", Arrays.asList(
+                station("KarachiCantt", 0),
+                station("HyderabadJn", 1),
+                station("RohriJn", 2),
+                station("RahimYarKhan", 3),
+                station("Bahawalpur", 4),
+                station("MultanCantt", 5),
+                station("KhanewalJn", 6),
+                station("LahoreJn", 7),
+                station("Gujranwala", 8),
+                station("WazirabadJn", 9),
+                station("Jhelum", 10),
+                station("Rawalpindi", 11)
+        ));
+
+        addRoute("route_khyber_mail", "Karachi → Peshawar", Arrays.asList(
+                station("KarachiCantt", 0),
+                station("HyderabadJn", 1),
+                station("RohriJn", 2),
+                station("MultanCantt", 3),
+                station("LahoreJn", 4),
+                station("Gujranwala", 5),
+                station("WazirabadJn", 6),
+                station("Gujrat", 7),
+                station("Jhelum", 8),
+                station("Rawalpindi", 9),
+                station("AttockCity", 10),
+                station("Nowshera", 11),
+                station("PeshawarCantt", 12)
+        ));
+
+        addRoute("route_subak_kharam", "Lahore → Rawalpindi", Arrays.asList(
+                station("LahoreJn", 0),
+                station("Gujranwala", 1),
+                station("WazirabadJn", 2),
+                station("Gujrat", 3),
+                station("LalaMusaJn", 4),
+                station("Jhelum", 5),
+                station("Chakwal", 6),
+                station("Rawalpindi", 7)
+        ));
+
+        addRoute("route_shalimar", "Lahore → Karachi", Arrays.asList(
+                station("LahoreJn", 0),
+                station("RaiwindJn", 1),
+                station("Sahiwal", 2),
+                station("KhanewalJn", 3),
+                station("MultanCantt", 4),
+                station("Bahawalpur", 5),
+                station("RohriJn", 6),
+                station("HyderabadJn", 7),
+                station("KarachiCantt", 8)
+        ));
+
+        addRoute("route_jinnah_express", "Lahore → Karachi", Arrays.asList(
+                station("LahoreJn", 0),
+                station("Faisalabad", 1),
+                station("KhanewalJn", 2),
+                station("MultanCantt", 3),
+                station("Bahawalpur", 4),
+                station("RohriJn", 5),
+                station("HyderabadJn", 6),
+                station("KarachiCantt", 7)
+        ));
+
+        addRoute("route_faisalabad_express", "Multan → Lahore", Arrays.asList(
+                station("MultanCantt", 0),
+                station("KhanewalJn", 1),
+                station("Sahiwal", 2),
+                station("Okara", 3),
+                station("RaiwindJn", 4),
+                station("LahoreJn", 5)
+        ));
+
+        addRoute("route_awam_express", "Karachi → Peshawar", Arrays.asList(
+                station("KarachiCantt", 0),
+                station("HyderabadJn", 1),
+                station("RohriJn", 2),
+                station("MultanCantt", 3),
+                station("LahoreJn", 4),
+                station("Rawalpindi", 5),
+                station("AttockCity", 6),
+                station("Nowshera", 7),
+                station("PeshawarCantt", 8)
+        ));
     }
 
     private Map<String, Object> station(String name, int index) {
@@ -196,8 +294,15 @@ public class FirebaseSeeder {
         addTrain("train_13", "Awan Express", "13UP", "route_awan_up");
         addTrain("train_11", "Hazara Express", "11UP", "route_hazara");
         addTrain("train_10N", "Allama Iqbal Express", "10N", "route_allama_iqbal");
+        addTrain("train_5DN", "Green Line Express", "5DN", "route_green_line");
+        addTrain("train_7UP", "Tezgam Express", "7UP", "route_tezzgam");
+        addTrain("train_1UP", "Khyber Mail", "1UP", "route_khyber_mail");
+        addTrain("train_101UP", "Subak Kharam", "101UP", "route_subak_kharam");
+        addTrain("train_27UP", "Shalimar Express", "27UP", "route_shalimar");
+        addTrain("train_31UP", "Jinnah Express", "31UP", "route_jinnah_express");
+        addTrain("train_39UP", "Faisalabad Express", "39UP", "route_faisalabad_express");
+        addTrain("train_13DN", "Awam Express", "13DN", "route_awam_express");
     }
-
     private void addTrain(String id, String name, String number, String routeId) {
 
         Map<String, Object> map = new HashMap<>();
