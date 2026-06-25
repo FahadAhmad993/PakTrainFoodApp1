@@ -12,6 +12,7 @@ import com.example.paktrainfoodapp.R;
 import com.example.paktrainfoodapp.ui.main.Delivery.DeliveryDashboardFragment;
 import com.example.paktrainfoodapp.ui.main.Delivery.DeliveryRegisterFragment;
 import com.example.paktrainfoodapp.ui.main.Passenger.Passenger_Fragment_Loader;
+import com.example.paktrainfoodapp.ui.main.Restaurant.RestaurantPendingFragment;
 import com.example.paktrainfoodapp.ui.main.Restaurant.restaurant_LoadFragment;
 import com.example.paktrainfoodapp.ui.main.Restaurant.restaurant_registers;
 import com.example.paktrainfoodapp.utils.PrefManager;
@@ -159,8 +160,11 @@ public class MainActivity extends AppCompatActivity {
             prefManager.setUserCity(city);
             loadFragment(new restaurant_LoadFragment());
         } else {
-            prefManager.setRegistered(false, email);
-            loadFragment(new restaurant_registers());
+//            prefManager.setRegistered(false, email);
+//            loadFragment(new restaurant_registers());
+            prefManager.setRegistered(true, email);
+
+            loadFragment(new RestaurantPendingFragment());
         }
     }
 

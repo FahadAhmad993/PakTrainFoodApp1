@@ -86,7 +86,7 @@ public class ActiveOrdersFragment extends Fragment {
         }
 
         orderListener = firestore.collection("Orders")
-                .whereEqualTo("restaurantUid", restaurantUid)
+                .whereEqualTo("restaurantId", restaurantUid)
                 .whereEqualTo("orderStatus", "Active")
                 .addSnapshotListener((query, e) -> {
 

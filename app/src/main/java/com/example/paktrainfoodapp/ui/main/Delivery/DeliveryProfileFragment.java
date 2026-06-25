@@ -28,7 +28,7 @@ public class DeliveryProfileFragment extends Fragment {
 
     private ImageView profileImage;
     private ImageView btnEditProfile;
-    private TextView txtName, txtEmail;
+    private TextView txtName,riderWallet, txtEmail;
     private TextView btnLogout; // Badla hua type Card List ke mutabiq
 
     private FirebaseAuth mAuth;
@@ -54,7 +54,7 @@ public class DeliveryProfileFragment extends Fragment {
         txtName = view.findViewById(R.id.txt_delivery_name);
         txtEmail = view.findViewById(R.id.txt_delivery_email);
         btnLogout = view.findViewById(R.id.btn_delivery_logout); // Matching ID text reference
-
+        riderWallet  = view.findViewById(R.id.riderWallet);
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         prefManager = new PrefManager(requireContext());
@@ -87,6 +87,19 @@ public class DeliveryProfileFragment extends Fragment {
             if (txtName != null) txtName.setText("Guest");
             if (txtEmail != null) txtEmail.setText("");
         }
+
+        //rider wallet open
+        riderWallet.setOnClickListener(v -> {
+
+            getParentFragmentManager()
+                    .beginTransaction()
+                    .replace(
+                            R.id.fragment_loader,
+                            new RiderWalletFragment()
+                    )
+                    .addToBackStack("profile")
+                    .commit();
+        });
 
         if (btnLogout != null) {
             btnLogout.setOnClickListener(v -> {

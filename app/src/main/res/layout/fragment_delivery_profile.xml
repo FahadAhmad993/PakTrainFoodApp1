@@ -116,6 +116,7 @@
                             android:layout_height="24dp"
                             android:src="@drawable/wallet"/>
                         <TextView
+                            android:id="@+id/riderWallet"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"

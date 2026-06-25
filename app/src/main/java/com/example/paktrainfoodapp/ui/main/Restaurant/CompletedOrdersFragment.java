@@ -73,7 +73,7 @@ public class CompletedOrdersFragment extends Fragment {
         if (listener != null) listener.remove();
 
         listener = firestore.collection("Orders")
-                .whereEqualTo("restaurantUid", restaurantUid)
+                .whereEqualTo("restaurantId", restaurantUid)
                 .addSnapshotListener((query, e) -> {
 
                     if (e != null || query == null || !isAdded()) return;

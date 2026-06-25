@@ -147,60 +147,119 @@ public class LoginFragment extends Fragment {
 
     // ---------------- CHECK REGISTRATION ---------------- //
     private void checkUserRegistration(String uid, String email) {
-        String collectionPath = "Users";
+
         String roleDoc;
-        String subCollection = "Register";
 
         switch (selectedRole) {
             case "PASSENGER":
                 roleDoc = "Passenger";
                 break;
+
             case "RESTAURANT":
                 roleDoc = "Restaurant";
-                subCollection = "VerifiedRegister";
                 break;
+
             case "DELIVERY":
                 roleDoc = "Delivery";
-                subCollection = "VerifiedRegister";
                 break;
+
             default:
                 roleDoc = "Passenger";
         }
 
-        db.collection(collectionPath)
+        // 🔍 Sab se pehle Register collection check karo
+        db.collection("Users")
                 .document(roleDoc)
-                .collection(subCollection)
+                .collection("Register")
                 .document(uid)
                 .get()
-                .addOnSuccessListener(doc -> handleUserCheck(doc, uid, email, roleDoc))
+                .addOnSuccessListener(registerDoc -> {
+
+                    // ❌ Register data hi nahi mila
+                    if (!registerDoc.exists()) {
+
+                        progressDialog.dismiss();
+
+                        if (selectedRole.equals("RESTAURANT")) {
+                            openRestaurantRegisterForm(uid, email);
+                        }
+                        else if (selectedRole.equals("DELIVERY")) {
+                            openDeliveryRegisterForm(uid, email);
+                        }
+                        else {
+                            Toast.makeText(
+                                    getContext(),
+                                    "Please register first.",
+                                    Toast.LENGTH_SHORT
+                            ).show();
+                        }
+
+                        return;
+                    }
+
+                    // ✅ Passenger ka kaam yahin khatam
+                    if (selectedRole.equals("PASSENGER")) {
+                        handleUserCheck(registerDoc, uid, email, roleDoc);
+                        return;
+                    }
+
+                    // 🔍 Restaurant / Delivery ke liye VerifiedRegister check karo
+                    db.collection("Users")
+                            .document(roleDoc)
+                            .collection("VerifiedRegister")
+                            .document(uid)
+                            .get()
+                            .addOnSuccessListener(verifiedDoc -> {
+                                handleUserCheck(
+                                        verifiedDoc,
+                                        uid,
+                                        email,
+                                        roleDoc
+                                );
+                            })
+                            .addOnFailureListener(e -> {
+                                progressDialog.dismiss();
+                                Toast.makeText(
+                                        getContext(),
+                                        e.getMessage(),
+                                        Toast.LENGTH_SHORT
+                                ).show();
+                            });
+
+                })
                 .addOnFailureListener(e -> {
-                    // ❌ Error aane par loader lazmi dismiss karein
                     progressDialog.dismiss();
-                    Toast.makeText(getContext(),
-                            "Error checking user: " + e.getMessage(),
-                            Toast.LENGTH_SHORT).show();
+
+                    Toast.makeText(
+                            getContext(),
+                            "Error: " + e.getMessage(),
+                            Toast.LENGTH_SHORT
+                    ).show();
                 });
     }
-
     private void handleUserCheck(DocumentSnapshot doc, String uid, String email, String roleDoc) {
         PrefManager pref = new PrefManager(requireContext());
 
         if (doc.exists()) {
             // 🚨 SECURITY GATE: Pehle check karo kya yeh Restaurant hai aur iska status false to nahi?
-            if (selectedRole.equals("RESTAURANT")) {
+            if (selectedRole.equals("RESTAURANT")
+                    || selectedRole.equals("DELIVERY")) {
+
                 Boolean isVerified = doc.getBoolean("isVerified");
 
-                // Agar isVerified null ho ya false ho, to login block kar do
                 if (isVerified == null || !isVerified) {
-                    progressDialog.dismiss(); // Loader band karo
 
-                    // User ko btao ke admin review chal raha hai
-                    Toast.makeText(getContext(), "Your application is under review by Admin. Please wait!", Toast.LENGTH_LONG).show();
+                    progressDialog.dismiss();
 
-                    // Session security ke liye logout karwa dein taake gate locked rahe
-                    auth.signOut();
-                    pref.setLogin(false);
-                    return; // Method ko yahan rok do, aage mat jaane do
+                    FirebaseAuth.getInstance().signOut();
+
+                    Toast.makeText(
+                            getContext(),
+                            "Your profile is waiting for Admin Approval.",
+                            Toast.LENGTH_LONG
+                    ).show();
+
+                    return;
                 }
             }
 
@@ -304,6 +363,23 @@ public class LoginFragment extends Fragment {
         }, 300);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -429,21 +505,43 @@ public class LoginFragment extends Fragment {
 //        auth.signInWithEmailAndPassword(email, password)
 //                .addOnCompleteListener(task -> {
 //                    if (task.isSuccessful()) {
-//                        String uid = auth.getCurrentUser().getUid();
-//                        PrefManager pref = new PrefManager(requireContext());
 //
-//                        pref.setLogin(true);
-//                        pref.setUserRole(selectedRole);
-//                        pref.setUserEmail(email);
+//                        auth.getCurrentUser().reload().addOnCompleteListener(reloadTask -> {
 //
-//                        // Check registration in Firestore (Yahan se loader automatic handle hoga agle method me)
-//                        checkUserRegistration(uid, email);
+//                            if (!auth.getCurrentUser().isEmailVerified()) {
+//
+//                                progressDialog.dismiss();
+//
+//                                FirebaseAuth.getInstance().signOut();
+//
+//                                Toast.makeText(
+//                                        getContext(),
+//                                        "Please verify your email first. Check your inbox.",
+//                                        Toast.LENGTH_LONG
+//                                ).show();
+//
+//                                return;
+//                            }
+//
+//                            String uid = auth.getCurrentUser().getUid();
+//
+//                            PrefManager pref = new PrefManager(requireContext());
+//                            pref.setLogin(true);
+//                            pref.setUserRole(selectedRole);
+//                            pref.setUserEmail(email);
+//
+//                            checkUserRegistration(uid, email);
+//                        });
+//
 //                    } else {
-//                        // ❌ Login fail ho gaya, loader close karein
+//
 //                        progressDialog.dismiss();
-//                        Toast.makeText(getContext(),
+//
+//                        Toast.makeText(
+//                                getContext(),
 //                                "Login failed: " + task.getException().getMessage(),
-//                                Toast.LENGTH_SHORT).show();
+//                                Toast.LENGTH_SHORT
+//                        ).show();
 //                    }
 //                });
 //    }
@@ -489,9 +587,28 @@ public class LoginFragment extends Fragment {
 //        PrefManager pref = new PrefManager(requireContext());
 //
 //        if (doc.exists()) {
-//            String name = doc.getString("name");
+//            // 🚨 SECURITY GATE: Pehle check karo kya yeh Restaurant hai aur iska status false to nahi?
+//            if (selectedRole.equals("RESTAURANT")) {
+//                Boolean isVerified = doc.getBoolean("isVerified");
+//
+//                // Agar isVerified null ho ya false ho, to login block kar do
+//                if (isVerified == null || !isVerified) {
+//                    progressDialog.dismiss(); // Loader band karo
+//
+//                    // User ko btao ke admin review chal raha hai
+//                    Toast.makeText(getContext(), "Your application is under review by Admin. Please wait!", Toast.LENGTH_LONG).show();
+//
+//                    // Session security ke liye logout karwa dein taake gate locked rahe
+//                    auth.signOut();
+//                    pref.setLogin(false);
+//                    return; // Method ko yahan rok do, aage mat jaane do
+//                }
+//            }
+//
+//            // 🎉 Agar PASSENGER hai, ya approved RESTAURANT hai, to hi yeh niche wala purana code chalay ga:
+//            String name = doc.getString("name"); // ya jo bhi field restaurantName hai
 //            pref.setRegistered(true, email);
-//            pref.setUserName(name);
+//            if (name != null) pref.setUserName(name);
 //            pref.setUserRole(roleDoc.toUpperCase());
 //
 //            // 🔓 Success! Main activity par jane se pehle loader band
@@ -511,7 +628,6 @@ public class LoginFragment extends Fragment {
 //            }
 //        }
 //    }
-//
 //    // ---------------- PASSWORD RESET ---------------- //
 //    private void sendResetPassword() {
 //        String email = edtEmail.getText() != null ? edtEmail.getText().toString().trim() : "";
@@ -589,4 +705,19 @@ public class LoginFragment extends Fragment {
 //        }, 300);
 //    }
 //}
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 //

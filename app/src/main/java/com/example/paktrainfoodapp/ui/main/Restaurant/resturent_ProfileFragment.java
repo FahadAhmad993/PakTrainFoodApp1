@@ -8,6 +8,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -32,7 +33,7 @@ public class resturent_ProfileFragment extends Fragment {
     private TextView txtName, txtEmail;
     private TextView btnLogout; // Type badal kar TextView kar diya list row click handle karne ke liye
     private static final String TAG = "ProfileFragment";
-
+    private LinearLayout layoutWallet;
     // Gallery result click callback trigger
     private ActivityResultLauncher<String> galleryLauncher;
 
@@ -51,6 +52,17 @@ public class resturent_ProfileFragment extends Fragment {
         txtName = view.findViewById(R.id.txt_name);
         txtEmail = view.findViewById(R.id.txt_email);
         btnLogout = view.findViewById(R.id.btn_logout); // Reference map
+        layoutWallet = view.findViewById(R.id.layout_wallet);
+
+        layoutWallet.setOnClickListener(v -> {
+
+            getParentFragmentManager()
+                    .beginTransaction()
+                    .replace(R.id.fragment_holder, new RestaurantWalletFragment())
+                    .addToBackStack(null)
+                    .commit();
+
+        });
 
         // 🖼️ Gallery pick handling aur circle crop preview setup
         galleryLauncher = registerForActivityResult(
@@ -82,6 +94,8 @@ public class resturent_ProfileFragment extends Fragment {
             btnLogout.setOnClickListener(v -> performLogout());
         }
     }
+
+
 
     private void performLogout() {
         // 1. Firebase sign out

@@ -153,6 +153,19 @@ public class FirebaseSeeder {
                 station("Jhelum", 9),
                 station("Rawalpindi", 10)
         ));
+        addRoute("route_hazara_return", "Rawalpindi → Karachi", Arrays.asList(
+                station("Rawalpindi", 0),
+                station("Jhelum", 1),
+                station("LalaMusaJn", 2),
+                station("MandiBahauddin", 3),
+                station("MalakwalJn", 4),
+                station("SargodhaJn", 5),
+                station("MultanCantt", 6),
+                station("Bahawalpur", 7),
+                station("RohriJn", 8),
+                station("HyderabadJn", 9),
+                station("KarachiCantt", 10)
+        ));
 
         addRoute("route_allama_iqbal", "Sialkot → Karachi", Arrays.asList(
                 station("SialkotJn", 0),
@@ -293,6 +306,7 @@ public class FirebaseSeeder {
 
         addTrain("train_13", "Awan Express", "13UP", "route_awan_up");
         addTrain("train_11", "Hazara Express", "11UP", "route_hazara");
+        addTrain("train_12", "Hazara Express", "12DOWN", "route_hazara_return");
         addTrain("train_10N", "Allama Iqbal Express", "10N", "route_allama_iqbal");
         addTrain("train_5DN", "Green Line Express", "5DN", "route_green_line");
         addTrain("train_7UP", "Tezgam Express", "7UP", "route_tezzgam");
