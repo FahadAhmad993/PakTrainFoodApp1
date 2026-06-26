@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
 import android.os.Bundle;
@@ -59,6 +60,8 @@ public class OrderNowFragment extends DialogFragment {
     private static final String ARG_REST = "itemRest";
     private static final String ARG_IMAGE = "itemImage";
     private static final String ARG_CART_ITEMS = "cartItems";
+    private String currentOrderId = "";
+    private String currentStation = "";
 
     public static OrderNowFragment newInstance(
             String name,
@@ -262,9 +265,11 @@ public class OrderNowFragment extends DialogFragment {
 
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-        String orderId = db.collection("Orders")
+        currentOrderId = db.collection("Orders")
                 .document()
                 .getId();
+
+        String orderId = currentOrderId;
 
         Map<String, Object> orderData = new HashMap<>();
 
@@ -303,6 +308,7 @@ public class OrderNowFragment extends DialogFragment {
         if (cartItems != null && !cartItems.isEmpty()) {
 
             CartItem first = cartItems.get(0);
+            currentStation = first.getMealStation();
 
             // Order Level Fields
 
@@ -377,6 +383,38 @@ public class OrderNowFragment extends DialogFragment {
                 .document(orderId)
                 .set(orderData)
                 .addOnSuccessListener(unused -> {
+
+                    Intent serviceIntent =
+                            new Intent(requireContext(),
+                                    LocationService.class);
+
+                    serviceIntent.putExtra(
+                            "orderId",
+                            currentOrderId
+                    );
+
+                    serviceIntent.putExtra(
+                            "passengerUid",
+                            passengerUid
+                    );
+
+                    serviceIntent.putExtra(
+                            "station",
+                            currentStation
+                    );
+
+                    if (android.os.Build.VERSION.SDK_INT
+                            >= android.os.Build.VERSION_CODES.O) {
+
+                        requireContext()
+                                .startForegroundService(serviceIntent);
+
+                    } else {
+
+                        requireContext()
+                                .startService(serviceIntent);
+                    }
+
 
                     CartManager.clear();
 

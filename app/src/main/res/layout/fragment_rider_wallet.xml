@@ -45,22 +45,47 @@
 
             <!-- AVAILABLE -->
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Available Balance"
-                android:textSize="14sp"
-                android:textColor="#777777"/>
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/txtAvailableBalance"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Rs 0"
-                android:textSize="32sp"
-                android:textStyle="bold"
-                android:textColor="#00695C"
-                android:layout_marginTop="8dp"/>
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Available Balance"
+                        android:textSize="14sp"
+                        android:textColor="#777777"/>
+
+                    <TextView
+                        android:id="@+id/txtAvailableBalance"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Rs 0"
+                        android:textSize="32sp"
+                        android:textStyle="bold"
+                        android:textColor="#00695C"
+                        android:layout_marginTop="8dp"/>
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnAddBank"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="+ Add Bank"
+                    android:textAllCaps="false"
+                    android:textColor="@android:color/white"
+                    android:backgroundTint="@color/teal_700"/>
+
+            </LinearLayout>
 
             <!-- PENDING -->
 
@@ -116,15 +141,5 @@
         android:padding="8dp"/>
 
 </LinearLayout>
-
-
-
-
-
-
-
-
-
-
 
 
