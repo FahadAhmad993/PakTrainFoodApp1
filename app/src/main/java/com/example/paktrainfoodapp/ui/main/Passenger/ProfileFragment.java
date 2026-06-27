@@ -1,5 +1,6 @@
 package com.example.paktrainfoodapp.ui.main.Passenger;
 
+import android.widget.LinearLayout;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -24,11 +25,13 @@ import com.example.paktrainfoodapp.utils.PrefManager;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+
 public class ProfileFragment extends Fragment {
 
     private ImageView profileImage;
     private ImageView btnEditProfile; // Pencil button declaration
     private TextView txtName, txtEmail, btnLogout;
+    private LinearLayout layoutHelpSupport;
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
@@ -57,7 +60,7 @@ public class ProfileFragment extends Fragment {
         txtName = view.findViewById(R.id.txt_name);
         txtEmail = view.findViewById(R.id.txt_email);
         btnLogout = view.findViewById(R.id.btn_logout);
-
+        layoutHelpSupport = view.findViewById(R.id.layoutHelpSupport);
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         prefManager = new PrefManager(requireContext());
@@ -100,6 +103,7 @@ public class ProfileFragment extends Fragment {
                 txtEmail.setText("");
             }
 
+
             btnLogout.setOnClickListener(v -> {
                 mAuth.signOut();
                 if (prefManager != null) {
@@ -113,8 +117,21 @@ public class ProfileFragment extends Fragment {
                     getActivity().finish();
                 }
             });
+            if (layoutHelpSupport != null) {
+
+                layoutHelpSupport.setOnClickListener(v -> {
+
+                    Fragment parent = getParentFragment();
+
+                    if (parent instanceof Passenger_Fragment_Loader) {
+                        ((Passenger_Fragment_Loader) parent).openHelpSupport();
+                    }
+
+                });
+
+            }
+            }
         }
-    }
 
     private void loadUserData() {
         if (mAuth.getCurrentUser() == null) return;
@@ -133,7 +150,7 @@ public class ProfileFragment extends Fragment {
                         if (txtEmail != null) txtEmail.setText(email != null ? email : "No Email");
 
                         if (imageUrl != null && !imageUrl.isEmpty() && profileImage != null) {
-                            Glide.with(requireActivity())
+                            Glide.with(equals())
                                     .load(imageUrl)
                                     .placeholder(R.drawable.edit_info)
                                     .circleCrop()
@@ -143,3 +160,4 @@ public class ProfileFragment extends Fragment {
                 });
     }
 }
+
