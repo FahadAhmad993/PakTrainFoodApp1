@@ -38,8 +38,8 @@ public class CommonIssues extends Fragment {
 
         if (getArguments() != null) {
 
-            String title = getArguments().getString("title");
-            String description = getArguments().getString("description");
+            String title = getArguments().getString("title", "Issue");
+            String description = getArguments().getString("description", "");
 
             txtIssueTitle.setText(title);
             txtIssueDescription.setText(description);
@@ -50,7 +50,9 @@ public class CommonIssues extends Fragment {
             Intent intent = new Intent(Intent.ACTION_SENDTO);
             intent.setData(Uri.parse("mailto:support@paktrainfood.com"));
             intent.putExtra(Intent.EXTRA_SUBJECT, "Support Request");
-            startActivity(Intent.createChooser(intent, "Contact Support"));
+            if (intent.resolveActivity(requireActivity().getPackageManager()) != null) {
+                startActivity(Intent.createChooser(intent, "Contact Support"));
+            }
 
         });
 

@@ -34,8 +34,8 @@ public class StaticPage extends Fragment {
 
         if (getArguments() != null) {
 
-            String title = getArguments().getString("title");
-            String description = getArguments().getString("description");
+            String title = getArguments().getString("title", "Information");
+            String description = getArguments().getString("description", "");
 
             txtPageTitle.setText(title);
             txtPageContent.setText(description);

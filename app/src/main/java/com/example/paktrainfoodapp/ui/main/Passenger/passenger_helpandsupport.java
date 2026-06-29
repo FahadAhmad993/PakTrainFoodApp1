@@ -207,11 +207,13 @@ public class passenger_helpandsupport extends Fragment {
         CommonIssues fragment = new CommonIssues();
         fragment.setArguments(bundle);
 
-        getParentFragmentManager()
-                .beginTransaction()
-                .replace(R.id.fragment_holder, fragment)
-                .addToBackStack(null)
-                .commit();
+        Fragment parent = getParentFragment();
+
+        if (parent instanceof Passenger_Fragment_Loader) {
+
+            ((Passenger_Fragment_Loader) parent)
+                    .openCommonFragment(fragment);
+        }
     }
 
     // ==========================

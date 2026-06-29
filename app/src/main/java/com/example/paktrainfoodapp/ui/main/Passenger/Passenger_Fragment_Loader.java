@@ -26,6 +26,7 @@ public class Passenger_Fragment_Loader extends Fragment {
     private final OrderFragment orderFragment = new OrderFragment();
     private final CartFragment cartFragment = new CartFragment();
     private final ProfileFragment profileFragment = new ProfileFragment();
+    private passenger_helpandsupport helpSupportFragment;
 
     private Fragment activeFragment;
 
@@ -83,6 +84,12 @@ public class Passenger_Fragment_Loader extends Fragment {
 
             ft.add(R.id.fragment_holder, profileFragment, "PROFILE")
                     .hide(profileFragment);
+            helpSupportFragment = new passenger_helpandsupport();
+
+            ft.add(R.id.fragment_holder,
+                            helpSupportFragment,
+                            "HELP_SUPPORT")
+                    .hide(helpSupportFragment);
 
             ft.commit();
 
@@ -292,7 +299,11 @@ public class Passenger_Fragment_Loader extends Fragment {
 
             selectNavButton(btnCart);
 
-        } else if (fragment instanceof ProfileFragment) {
+        } else if (fragment instanceof ProfileFragment
+                || fragment instanceof passenger_helpandsupport
+                || fragment instanceof CommonIssues
+                || fragment instanceof StaticPage
+                || fragment instanceof LiveChatFragment) {
 
             selectNavButton(btnProfile);
         }
@@ -362,8 +373,27 @@ public class Passenger_Fragment_Loader extends Fragment {
     public Fragment getHomeFragment() {
         return homeFragment;
     }
-}
+    public void openHelpSupport() {
 
+        if (helpSupportFragment == null) {
+            helpSupportFragment = new passenger_helpandsupport();
+        }
+
+        showFragment(helpSupportFragment);
+    }
+    public void openCommonFragment(Fragment fragment) {
+
+        FragmentTransaction transaction =
+                getChildFragmentManager().beginTransaction();
+
+        transaction.replace(R.id.fragment_holder, fragment);
+
+        transaction.addToBackStack(null);
+
+        transaction.commit();
+    }
+
+}
 
 
 

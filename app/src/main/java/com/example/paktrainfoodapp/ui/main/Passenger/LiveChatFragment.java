@@ -43,20 +43,29 @@ public class LiveChatFragment extends Fragment {
 
             if (!TextUtils.isEmpty(message)) {
 
-                TextView tv = new TextView(getContext());
+                TextView tv = new TextView(requireContext());
 
                 tv.setText("You : " + message);
                 tv.setTextSize(16);
-                tv.setPadding(20,20,20,20);
+                tv.setPadding(24, 24, 24, 24);
                 tv.setBackgroundResource(android.R.drawable.dialog_holo_light_frame);
 
                 chatContainer.addView(tv);
+                // Auto Reply
+                TextView reply = new TextView(requireContext());
+
+                reply.setText("Support : Thank you for contacting Pak Train Food.\nWe will respond shortly.");
+                reply.setTextSize(16);
+                reply.setPadding(24,24,24,24);
+                reply.setBackgroundResource(android.R.drawable.dialog_holo_light_frame);
+
+                chatContainer.addView(reply);
 
                 etMessage.setText("");
             }
 
         });
-
         return view;
+
     }
 }
