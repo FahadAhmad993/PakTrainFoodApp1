@@ -1,6 +1,9 @@
 package com.example.paktrainfoodapp.ui.main;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -21,6 +24,17 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory;
+import com.google.firebase.messaging.FirebaseMessaging;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -33,7 +47,22 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        createNotificationChannel();
+// Android 13+ Notification Permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                ActivityCompat.requestPermissions(
+                        this,
+                        new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                        101
+                );
+            }
+        }
 
         FirebaseAppCheck.getInstance()
                 .installAppCheckProviderFactory(
@@ -105,6 +134,33 @@ public class MainActivity extends AppCompatActivity {
         }
 
         String uid = auth.getCurrentUser().getUid();
+
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+
+                    if (!task.isSuccessful()) {
+                        Log.e("FCM", "Token generate nahi hua");
+                        return;
+                    }
+
+                    String token = task.getResult();
+
+                    Log.d("FCM_TOKEN", token);
+
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("fcmToken", token);
+
+                    db.collection("Users")
+                            .document("Notification")
+                            .collection("FCMTokens")
+                            .document(uid)
+                            .set(map)
+                            .addOnSuccessListener(unused ->
+                                    Log.d("FCM", "Token Save Successfully"))
+                            .addOnFailureListener(e ->
+                                    Log.e("FCM", e.getMessage()));
+                });
+
 
         switch (userRole) {
             case "RESTAURANT":
@@ -214,6 +270,23 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.main_container, fragment)
                 .commitAllowingStateLoss();
+    }
+    private void createNotificationChannel() {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+            NotificationChannel channel = new NotificationChannel(
+                    "channel_id",
+                    "General Notifications",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+
+            NotificationManager manager = getSystemService(NotificationManager.class);
+
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
     }
 
 }
