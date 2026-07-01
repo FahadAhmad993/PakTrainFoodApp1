@@ -15,6 +15,8 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import com.example.paktrainfoodapp.Splash;
+import com.example.paktrainfoodapp.utils.PrefManager;
 
 import com.bumptech.glide.Glide;
 import com.example.paktrainfoodapp.R;
