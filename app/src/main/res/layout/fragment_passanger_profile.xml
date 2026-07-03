@@ -145,7 +145,14 @@
                     android:orientation="vertical"
                     android:padding="8dp">
 
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="12dp" android:gravity="center_vertical">
+                    <LinearLayout
+                        android:id="@+id/layoutHelpSupport"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="12dp"
+                        android:gravity="center_vertical"
+                        android:clickable="true"
+                        android:focusable="true">
                         <ImageView
                             android:layout_width="22dp"
                             android:layout_height="23dp"
@@ -156,7 +163,8 @@
 
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" android:layout_marginHorizontal="12dp"/>
 
-                    <LinearLayout android:layout_width="match_parent"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:padding="12dp"
                         android:gravity="center_vertical">

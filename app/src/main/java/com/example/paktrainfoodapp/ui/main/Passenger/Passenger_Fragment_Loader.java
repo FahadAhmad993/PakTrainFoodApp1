@@ -29,6 +29,7 @@ private final NotificationFragment notificationFragment = new NotificationFragme
     private final OrderFragment orderFragment = new OrderFragment();
     private final CartFragment cartFragment = new CartFragment();
     private final ProfileFragment profileFragment = new ProfileFragment();
+    private passenger_helpandsupport helpSupportFragment;
     private TextView txtNotificationBadge;
 
     private NotificationRepository notificationRepository;
@@ -98,6 +99,12 @@ private final NotificationFragment notificationFragment = new NotificationFragme
 
             ft.add(R.id.fragment_holder, profileFragment, "PROFILE")
                     .hide(profileFragment);
+            helpSupportFragment = new passenger_helpandsupport();
+
+            ft.add(R.id.fragment_holder,
+                            helpSupportFragment,
+                            "HELP_SUPPORT")
+                    .hide(helpSupportFragment);
 
             ft.commit();
 
@@ -440,7 +447,11 @@ private final NotificationFragment notificationFragment = new NotificationFragme
 
             selectNavButton(btnCart);
 
-        } else if (fragment instanceof ProfileFragment) {
+        } else if (fragment instanceof ProfileFragment
+                || fragment instanceof passenger_helpandsupport
+                || fragment instanceof CommonIssues
+                || fragment instanceof StaticPage
+                || fragment instanceof LiveChatFragment) {
 
             selectNavButton(btnProfile);
         }
@@ -554,6 +565,22 @@ private final NotificationFragment notificationFragment = new NotificationFragme
     public Fragment getHomeFragment() {
         return homeFragment;
     }
+    public void openHelpSupport() {
+
+        if (helpSupportFragment == null) {
+            helpSupportFragment = new passenger_helpandsupport();
+        }
+
+        showFragment(helpSupportFragment);
+    }
+    public void openCommonFragment(Fragment fragment) {
+
+        FragmentTransaction transaction =
+                getChildFragmentManager().beginTransaction();
+
+        transaction.replace(R.id.fragment_holder, fragment);
+
+        transaction.addToBackStack(null);
 
     @Override
     public void onDestroyView() {
@@ -569,6 +596,10 @@ private final NotificationFragment notificationFragment = new NotificationFragme
     }
 }
 
+        transaction.commit();
+    }
+
+}
 
 
 
