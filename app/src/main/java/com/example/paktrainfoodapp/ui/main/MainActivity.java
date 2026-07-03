@@ -1,6 +1,10 @@
 package com.example.paktrainfoodapp.ui.main;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -21,6 +25,17 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory;
+import com.google.firebase.messaging.FirebaseMessaging;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
+
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -28,12 +43,28 @@ public class MainActivity extends AppCompatActivity {
     private PrefManager prefManager;
     private FirebaseAuth auth;
     private FirebaseFirestore db;
+    private Passenger_Fragment_Loader passengerLoader;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        createNotificationChannel();
+// Android 13+ Notification Permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+
+                ActivityCompat.requestPermissions(
+                        this,
+                        new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                        101
+                );
+            }
+        }
 
         FirebaseAppCheck.getInstance()
                 .installAppCheckProviderFactory(
@@ -106,13 +137,51 @@ public class MainActivity extends AppCompatActivity {
 
         String uid = auth.getCurrentUser().getUid();
 
+        FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+
+                    if (!task.isSuccessful()) {
+                        Log.e("FCM", "Token generate nahi hua");
+                        return;
+                    }
+
+                    String token = task.getResult();
+
+                    Log.d("FCM_TOKEN", token);
+
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("fcmToken", token);
+
+                    db.collection("Users")
+                            .document("Notification")
+                            .collection("FCMTokens")
+                            .document(uid)
+                            .set(map)
+                            .addOnSuccessListener(unused ->
+                                    Log.d("FCM", "Token Save Successfully"))
+                            .addOnFailureListener(e ->
+                                    Log.e("FCM", e.getMessage()));
+                });
+
+
         switch (userRole) {
             case "RESTAURANT":
                 handleRestaurantRole(uid);
                 break;
 
             case "PASSENGER":
-                loadFragment(new Passenger_Fragment_Loader());
+                passengerLoader = new Passenger_Fragment_Loader();
+
+                String screen =
+                        getIntent().getStringExtra("screen");
+
+                if ("orders".equals(screen)) {
+
+                    passengerLoader.requestOpenOrders();
+
+                }
+
+                loadFragment(passengerLoader);
                 break;
 
             case "DELIVERY":
@@ -123,8 +192,59 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Unknown role", Toast.LENGTH_SHORT).show();
                 break;
         }
+        handleNotificationIntent(getIntent());
     }
 
+    //jab app open ho then notificaton pr clik krny pr call hoga
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+
+        setIntent(intent);
+
+        handleNotificationIntent(intent);
+    }
+
+    private void handleNotificationIntent(Intent intent) {
+
+        if (intent == null) return;
+
+        String screen = intent.getStringExtra("screen");
+
+        if (screen == null) return;
+
+        if ("orders".equals(screen)) {
+
+            String status = intent.getStringExtra("status");
+
+            int tab = 0;
+
+            if ("Accepted".equals(status)) {
+
+                tab = 1;
+
+            } else if ("pick_up".equals(status)
+                    || "dropped".equals(status)
+                    || "ready_for_delivery".equals(status)
+                    || "accepted_by_rider".equals(status)
+                    || "arrive_rider_at_resturent".equals(status)) {
+
+                tab = 2;
+
+            } else if ("completed".equals(status)) {
+
+                tab = 3;
+
+            }
+
+            if (passengerLoader != null) {
+
+                passengerLoader.navigateToOrders(tab);
+
+            }
+
+        }
+    }
     private void handleRestaurantRole(String uid) {
         if (prefManager.isRegistered() && prefManager.isRestaurantVerified()) {
             loadFragment(new restaurant_LoadFragment());
@@ -214,6 +334,23 @@ public class MainActivity extends AppCompatActivity {
                 .beginTransaction()
                 .replace(R.id.main_container, fragment)
                 .commitAllowingStateLoss();
+    }
+    private void createNotificationChannel() {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+            NotificationChannel channel = new NotificationChannel(
+                    "channel_id",
+                    "General Notifications",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+
+            NotificationManager manager = getSystemService(NotificationManager.class);
+
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
     }
 
 }

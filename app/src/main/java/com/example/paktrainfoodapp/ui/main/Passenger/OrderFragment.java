@@ -25,6 +25,7 @@ public class OrderFragment extends Fragment implements Refreshable {
     private ImageView headerImage;
     private Toolbar toolbarOrders;
     private ProgressBar progressRefresh;
+    private int selectedTab = 0;
 
     public OrderFragment() {}
 
@@ -57,7 +58,16 @@ public class OrderFragment extends Fragment implements Refreshable {
         }
 
         if (savedInstanceState == null) {
-            replaceChildFragment(new ActiveOrdersFragment());
+            if (savedInstanceState == null) {
+
+                TabLayout.Tab tab = tabsOrders.getTabAt(selectedTab);
+
+                if (tab != null) {
+                    tab.select();
+                }
+
+                replaceChildFragment(getFragmentByTab(selectedTab));
+            }
         }
 
         tabsOrders.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
@@ -131,6 +141,10 @@ public class OrderFragment extends Fragment implements Refreshable {
 
             }, 800);
         }
+    }
+
+    public void setSelectedTab(int tab) {
+        selectedTab = tab;
     }
 
 }

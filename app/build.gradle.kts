@@ -75,6 +75,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.stripe:stripe-android:20.+")
+    implementation("com.google.firebase:firebase-messaging:25.0.0")
 
 
 }
