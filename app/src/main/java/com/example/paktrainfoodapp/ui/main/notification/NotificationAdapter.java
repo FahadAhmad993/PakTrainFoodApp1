@@ -1,66 +1,129 @@
 package com.example.paktrainfoodapp.ui.main.notification;
 
-import android.os.Bundle;
-
-import androidx.fragment.app.Fragment;
-
+import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.TextView;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.paktrainfoodapp.R;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link NotificationAdapter#newInstance} factory method to
- * create an instance of this fragment.
- */
-public class NotificationAdapter extends Fragment {
+import java.util.List;
 
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
+public class NotificationAdapter
+        extends RecyclerView.Adapter<NotificationAdapter.ViewHolder> {
 
-    // TODO: Rename and change types of parameters
-    private String mParam1;
-    private String mParam2;
+    private final Context context;
+    private final List<NotificationModel> list;
 
-    public NotificationAdapter() {
-        // Required empty public constructor
+    public NotificationAdapter(Context context,
+                               List<NotificationModel> list) {
+
+        this.context = context;
+        this.list = list;
     }
 
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment NotificationAdapter.
-     */
-    // TODO: Rename and change types and number of parameters
-    public static NotificationAdapter newInstance(String param1, String param2) {
-        NotificationAdapter fragment = new NotificationAdapter();
-        Bundle args = new Bundle();
-        args.putString(ARG_PARAM1, param1);
-        args.putString(ARG_PARAM2, param2);
-        fragment.setArguments(args);
-        return fragment;
+    @NonNull
+    @Override
+    public ViewHolder onCreateViewHolder(
+            @NonNull ViewGroup parent,
+            int viewType) {
+
+        View view = LayoutInflater.from(context)
+                .inflate(
+                        R.layout.item_notification,
+                        parent,
+                        false
+                );
+
+        return new ViewHolder(view);
     }
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
+    public void onBindViewHolder(
+            @NonNull ViewHolder holder,
+            int position) {
+
+        NotificationModel model = list.get(position);
+
+        holder.txtTitle.setText(model.getTitle());
+        holder.txtBody.setText(model.getBody());
+        if (model.getCreatedAt() != null) {
+
+            Date date = model.getCreatedAt().toDate();
+
+            SimpleDateFormat sdf =
+                    new SimpleDateFormat("dd MMM yyyy  hh:mm a", Locale.getDefault());
+
+            holder.txtTime.setText(sdf.format(date));
+
+        } else {
+
+            holder.txtTime.setText("");
+
         }
+
+        // Read / Unread Dot
+        if (model.isRead()) {
+
+            holder.viewUnread.setVisibility(View.GONE);
+
+        } else {
+
+            holder.viewUnread.setVisibility(View.VISIBLE);
+
+        }
+
+        // Future Click
+        holder.itemView.setOnClickListener(v -> {
+
+            // Firestore Read
+
+            // Open Order Screen
+
+        });
+
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_notification_adapter, container, false);
+    public int getItemCount() {
+
+        return list.size();
+
     }
+
+    static class ViewHolder extends RecyclerView.ViewHolder {
+
+        ImageView imgIcon;
+
+        TextView txtTitle;
+        TextView txtBody;
+        TextView txtTime;
+
+        View viewUnread;
+
+        ViewHolder(@NonNull View itemView) {
+
+            super(itemView);
+
+            imgIcon = itemView.findViewById(R.id.imgIcon);
+
+            txtTitle = itemView.findViewById(R.id.txtTitle);
+
+            txtBody = itemView.findViewById(R.id.txtBody);
+
+            txtTime = itemView.findViewById(R.id.txtTime);
+
+            viewUnread = itemView.findViewById(R.id.viewUnread);
+
+        }
+
+    }
+
 }

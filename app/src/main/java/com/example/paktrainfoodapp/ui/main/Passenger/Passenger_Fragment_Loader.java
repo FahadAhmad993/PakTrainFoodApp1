@@ -15,17 +15,23 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.example.paktrainfoodapp.R;
+import com.example.paktrainfoodapp.ui.main.notification.NotificationFragment;
+import com.example.paktrainfoodapp.ui.main.notification.NotificationRepository;
 
 public class Passenger_Fragment_Loader extends Fragment {
 
-    private LinearLayout btnMenu, btnOrder, btnDashboard, btnCart, btnProfile;
+    private LinearLayout btnNotification, btnOrder, btnDashboard, btnCart, btnProfile;
 
     // Main Bottom Navigation Fragments
     private final HomeFragment homeFragment = new HomeFragment();
-    private final MenuBrowseFragment menuFragment = new MenuBrowseFragment();
+//    private final MenuBrowseFragment menuFragment = new MenuBrowseFragment();
+private final NotificationFragment notificationFragment = new NotificationFragment();
     private final OrderFragment orderFragment = new OrderFragment();
     private final CartFragment cartFragment = new CartFragment();
     private final ProfileFragment profileFragment = new ProfileFragment();
+    private TextView txtNotificationBadge;
+
+    private NotificationRepository notificationRepository;
 
     private Fragment activeFragment;
 
@@ -35,6 +41,12 @@ public class Passenger_Fragment_Loader extends Fragment {
     // Station Menu
     // Item Detail
     private Fragment lastDashboardFragment;
+    private boolean openOrderAfterLoad = false;
+    public void requestOpenOrders() {
+
+        openOrderAfterLoad = true;
+
+    }
 
     public Passenger_Fragment_Loader() {}
 
@@ -57,7 +69,10 @@ public class Passenger_Fragment_Loader extends Fragment {
 
         super.onViewCreated(view, savedInstanceState);
 
-        btnMenu = view.findViewById(R.id.btn_menu);
+        btnNotification = view.findViewById(R.id.btnNotification);
+        txtNotificationBadge =  view.findViewById(R.id.txtNotificationBadge);
+
+        notificationRepository = new NotificationRepository();
         btnOrder = view.findViewById(R.id.btn_order);
         btnDashboard = view.findViewById(R.id.btn_dashboard);
         btnCart = view.findViewById(R.id.btn_cart);
@@ -72,8 +87,8 @@ public class Passenger_Fragment_Loader extends Fragment {
 
             ft.add(R.id.fragment_holder, homeFragment, "HOME");
 
-            ft.add(R.id.fragment_holder, menuFragment, "MENU")
-                    .hide(menuFragment);
+            ft.add(R.id.fragment_holder, notificationFragment, "NOTIFICATION")
+                    .hide(notificationFragment);
 
             ft.add(R.id.fragment_holder, orderFragment, "ORDER")
                     .hide(orderFragment);
@@ -109,13 +124,14 @@ public class Passenger_Fragment_Loader extends Fragment {
             }
         });
 
-        // ================= MENU =================
+        // ================= Notification =================
 
-        btnMenu.setOnClickListener(v -> {
+        btnNotification.setOnClickListener(v -> {
 
-            selectNavButton(btnMenu);
+            selectNavButton(btnNotification);
 
-            showFragment(menuFragment);
+            showFragment(notificationFragment);
+
         });
 
         // ================= ORDER =================
@@ -144,8 +160,139 @@ public class Passenger_Fragment_Loader extends Fragment {
 
             showFragment(profileFragment);
         });
-    }
 
+        if (openOrderAfterLoad) {
+
+            openOrderAfterLoad = false;
+
+            view.post(() -> {
+
+                navigateToOrders();
+
+            });
+
+        }
+        startBadgeListener();
+        startNotificationBadge();
+
+    }
+    public void navigateToOrders() {
+
+        if (!isAdded()) {
+
+            openOrderAfterLoad = true;
+            return;
+
+        }
+
+        showFragment(orderFragment);
+
+        selectNavButton(btnOrder);
+
+    }
+    public void navigateToOrders(int tabIndex) {
+
+        orderFragment.setSelectedTab(tabIndex);
+
+        navigateToOrders();
+
+    }
+    private void startBadgeListener() {
+
+        notificationRepository.listenUnreadCount(
+                "PASSENGER",
+                new NotificationRepository.BadgeCallback() {
+
+                    @Override
+                    public void onCountChanged(int count) {
+
+                        if (getActivity() == null)
+                            return;
+
+                        getActivity().runOnUiThread(() -> {
+
+                            if (count <= 0) {
+
+                                txtNotificationBadge.setVisibility(View.GONE);
+
+                            } else {
+
+                                txtNotificationBadge.setVisibility(View.VISIBLE);
+
+                                if (count > 99) {
+
+                                    txtNotificationBadge.setText("99+");
+
+                                } else {
+
+                                    txtNotificationBadge.setText(
+                                            String.valueOf(count));
+
+                                }
+
+                            }
+
+                        });
+
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+
+                    }
+
+                });
+
+    }
+    private void startNotificationBadge() {
+
+        notificationRepository.listenUnreadCount(
+
+                NotificationRepository.ROLE_PASSENGER,
+
+                new NotificationRepository.BadgeCallback() {
+
+                    @Override
+                    public void onCountChanged(int count) {
+
+                        if (!isAdded())
+                            return;
+
+                        requireActivity().runOnUiThread(() -> {
+
+                            if (count <= 0) {
+
+                                txtNotificationBadge.setVisibility(View.GONE);
+
+                            } else {
+
+                                txtNotificationBadge.setVisibility(View.VISIBLE);
+
+                                if (count > 99) {
+
+                                    txtNotificationBadge.setText("99+");
+
+                                } else {
+
+                                    txtNotificationBadge.setText(
+                                            String.valueOf(count));
+
+                                }
+
+                            }
+
+                        });
+
+                    }
+
+                    @Override
+                    public void onFailure(Exception e) {
+
+                    }
+
+                });
+
+    }
     // =========================================================
     // SHOW FRAGMENT
     // =========================================================
@@ -280,9 +427,10 @@ public class Passenger_Fragment_Loader extends Fragment {
 
             selectNavButton(btnDashboard);
 
-        } else if (fragment instanceof MenuBrowseFragment) {
+        } else if (fragment instanceof NotificationFragment) {
 
-            selectNavButton(btnMenu);
+            selectNavButton(btnNotification);
+
 
         } else if (fragment instanceof OrderFragment) {
 
@@ -304,53 +452,97 @@ public class Passenger_Fragment_Loader extends Fragment {
     private void selectNavButton(LinearLayout selectedBtn) {
 
         LinearLayout[] buttons = {
-                btnMenu,
+                btnNotification,
                 btnOrder,
                 btnDashboard,
                 btnCart,
                 btnProfile
         };
 
+        // Reset all buttons
         for (LinearLayout btn : buttons) {
 
             if (btn == null) continue;
 
-            ImageView icon = (ImageView) btn.getChildAt(0);
-            TextView text = (TextView) btn.getChildAt(1);
+            ImageView icon = null;
+            TextView text = null;
 
-            // Default Gray
-            icon.setColorFilter(
-                    getResources().getColor(R.color.gray)
-            );
+            if (btn.getId() == R.id.btnNotification) {
 
-            text.setTextColor(
-                    getResources().getColor(R.color.gray)
-            );
+                icon = btn.findViewById(R.id.imgNotification);
+                text = btn.findViewById(R.id.text_notification);
 
-            text.setTypeface(null, Typeface.NORMAL);
+            } else if (btn.getId() == R.id.btn_order) {
+
+                icon = btn.findViewById(R.id.icon_order);
+                text = btn.findViewById(R.id.text_order);
+
+            } else if (btn.getId() == R.id.btn_dashboard) {
+
+                icon = btn.findViewById(R.id.icon_dashboard);
+                text = btn.findViewById(R.id.text_dashboard);
+
+            } else if (btn.getId() == R.id.btn_cart) {
+
+                icon = btn.findViewById(R.id.icon_cart);
+                text = btn.findViewById(R.id.text_cart);
+
+            } else if (btn.getId() == R.id.btn_profile) {
+
+                icon = btn.findViewById(R.id.icon_profile);
+                text = btn.findViewById(R.id.text_profile);
+            }
+
+            if (icon != null) {
+                icon.setColorFilter(getResources().getColor(R.color.gray));
+            }
+
+            if (text != null) {
+                text.setTextColor(getResources().getColor(R.color.gray));
+                text.setTypeface(null, Typeface.NORMAL);
+            }
         }
 
-        // Selected Green
-        if (selectedBtn != null) {
+        if (selectedBtn == null) return;
 
-            ImageView selIcon =
-                    (ImageView) selectedBtn.getChildAt(0);
+        ImageView selectedIcon = null;
+        TextView selectedText = null;
 
-            TextView selText =
-                    (TextView) selectedBtn.getChildAt(1);
+        if (selectedBtn.getId() == R.id.btnNotification) {
 
-            selIcon.setColorFilter(
-                    getResources().getColor(R.color.green)
-            );
+            selectedIcon = selectedBtn.findViewById(R.id.imgNotification);
+            selectedText = selectedBtn.findViewById(R.id.text_notification);
 
-            selText.setTextColor(
-                    getResources().getColor(R.color.green)
-            );
+        } else if (selectedBtn.getId() == R.id.btn_order) {
 
-            selText.setTypeface(null, Typeface.BOLD);
+            selectedIcon = selectedBtn.findViewById(R.id.icon_order);
+            selectedText = selectedBtn.findViewById(R.id.text_order);
+
+        } else if (selectedBtn.getId() == R.id.btn_dashboard) {
+
+            selectedIcon = selectedBtn.findViewById(R.id.icon_dashboard);
+            selectedText = selectedBtn.findViewById(R.id.text_dashboard);
+
+        } else if (selectedBtn.getId() == R.id.btn_cart) {
+
+            selectedIcon = selectedBtn.findViewById(R.id.icon_cart);
+            selectedText = selectedBtn.findViewById(R.id.text_cart);
+
+        } else if (selectedBtn.getId() == R.id.btn_profile) {
+
+            selectedIcon = selectedBtn.findViewById(R.id.icon_profile);
+            selectedText = selectedBtn.findViewById(R.id.text_profile);
+        }
+
+        if (selectedIcon != null) {
+            selectedIcon.setColorFilter(getResources().getColor(R.color.green));
+        }
+
+        if (selectedText != null) {
+            selectedText.setTextColor(getResources().getColor(R.color.green));
+            selectedText.setTypeface(null, Typeface.BOLD);
         }
     }
-
     // =========================================================
     // GETTERS
     // =========================================================
@@ -361,6 +553,19 @@ public class Passenger_Fragment_Loader extends Fragment {
 
     public Fragment getHomeFragment() {
         return homeFragment;
+    }
+
+    @Override
+    public void onDestroyView() {
+
+        super.onDestroyView();
+
+        if (notificationRepository != null) {
+
+            notificationRepository.removeListener();
+
+        }
+
     }
 }
 

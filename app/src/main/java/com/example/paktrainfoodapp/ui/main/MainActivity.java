@@ -2,6 +2,7 @@ package com.example.paktrainfoodapp.ui.main;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
@@ -42,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
     private PrefManager prefManager;
     private FirebaseAuth auth;
     private FirebaseFirestore db;
+    private Passenger_Fragment_Loader passengerLoader;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -168,7 +170,18 @@ public class MainActivity extends AppCompatActivity {
                 break;
 
             case "PASSENGER":
-                loadFragment(new Passenger_Fragment_Loader());
+                passengerLoader = new Passenger_Fragment_Loader();
+
+                String screen =
+                        getIntent().getStringExtra("screen");
+
+                if ("orders".equals(screen)) {
+
+                    passengerLoader.requestOpenOrders();
+
+                }
+
+                loadFragment(passengerLoader);
                 break;
 
             case "DELIVERY":
@@ -179,8 +192,59 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Unknown role", Toast.LENGTH_SHORT).show();
                 break;
         }
+        handleNotificationIntent(getIntent());
     }
 
+    //jab app open ho then notificaton pr clik krny pr call hoga
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+
+        setIntent(intent);
+
+        handleNotificationIntent(intent);
+    }
+
+    private void handleNotificationIntent(Intent intent) {
+
+        if (intent == null) return;
+
+        String screen = intent.getStringExtra("screen");
+
+        if (screen == null) return;
+
+        if ("orders".equals(screen)) {
+
+            String status = intent.getStringExtra("status");
+
+            int tab = 0;
+
+            if ("Accepted".equals(status)) {
+
+                tab = 1;
+
+            } else if ("pick_up".equals(status)
+                    || "dropped".equals(status)
+                    || "ready_for_delivery".equals(status)
+                    || "accepted_by_rider".equals(status)
+                    || "arrive_rider_at_resturent".equals(status)) {
+
+                tab = 2;
+
+            } else if ("completed".equals(status)) {
+
+                tab = 3;
+
+            }
+
+            if (passengerLoader != null) {
+
+                passengerLoader.navigateToOrders(tab);
+
+            }
+
+        }
+    }
     private void handleRestaurantRole(String uid) {
         if (prefManager.isRegistered() && prefManager.isRestaurantVerified()) {
             loadFragment(new restaurant_LoadFragment());

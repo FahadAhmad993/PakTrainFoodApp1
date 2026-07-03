@@ -1,66 +1,75 @@
 package com.example.paktrainfoodapp.ui.main.notification;
 
-import android.os.Bundle;
+import com.google.firebase.Timestamp;
 
-import androidx.fragment.app.Fragment;
+public class NotificationModel {
 
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+    private String documentId;
 
-import com.example.paktrainfoodapp.R;
+    private String title;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link NotificationModel#newInstance} factory method to
- * create an instance of this fragment.
- */
-public class NotificationModel extends Fragment {
+    private String body;
 
-    // TODO: Rename parameter arguments, choose names that match
-    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-    private static final String ARG_PARAM1 = "param1";
-    private static final String ARG_PARAM2 = "param2";
+    private String orderId;
 
-    // TODO: Rename and change types of parameters
-    private String mParam1;
-    private String mParam2;
+    private String status;
+
+    private boolean isRead;
+
+    private Timestamp createdAt;
 
     public NotificationModel() {
-        // Required empty public constructor
+        // Firestore Required
     }
 
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment NotificationModel.
-     */
-    // TODO: Rename and change types and number of parameters
-    public static NotificationModel newInstance(String param1, String param2) {
-        NotificationModel fragment = new NotificationModel();
-        Bundle args = new Bundle();
-        args.putString(ARG_PARAM1, param1);
-        args.putString(ARG_PARAM2, param2);
-        fragment.setArguments(args);
-        return fragment;
+    public NotificationModel(String title,
+                             String body,
+                             String orderId,
+                             String status,
+                             boolean isRead,
+                             Timestamp createdAt) {
+
+        this.title = title;
+        this.body = body;
+        this.orderId = orderId;
+        this.status = status;
+        this.isRead = isRead;
+        this.createdAt = createdAt;
     }
 
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
-            mParam1 = getArguments().getString(ARG_PARAM1);
-            mParam2 = getArguments().getString(ARG_PARAM2);
-        }
+    public String getDocumentId() {
+        return documentId;
     }
 
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_notification_model, container, false);
+    public void setDocumentId(String documentId) {
+        this.documentId = documentId;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public String getOrderId() {
+        return orderId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public boolean isRead() {
+        return isRead;
+    }
+
+    public Timestamp getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setRead(boolean read) {
+        isRead = read;
     }
 }

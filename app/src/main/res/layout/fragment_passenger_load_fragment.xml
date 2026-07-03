@@ -5,6 +5,9 @@
     android:layout_height="match_parent"
     android:background="@color/white">
 
+
+
+
     <!-- Fragment Container -->
     <FrameLayout
         android:id="@+id/fragment_holder"
@@ -25,24 +28,51 @@
 
         <!-- Menu Button -->
         <LinearLayout
-            android:id="@+id/btn_menu"
+            android:id="@+id/btnNotification"
             android:orientation="vertical"
             android:gravity="center"
             android:layout_weight="1"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:padding="4dp">
-            <ImageView
-                android:id="@+id/icon_menu"
-                android:src="@drawable/ic_browse_menu"
-                android:layout_width="28dp"
-                android:layout_height="28dp"/>
+            <FrameLayout
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <ImageView
+                    android:id="@+id/imgNotification"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_notification"/>
+
+                <TextView
+                    android:id="@+id/txtNotificationBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="18dp"
+                    android:minWidth="18dp"
+                    android:layout_gravity="end|top"
+                    android:translationX="6dp"
+                    android:translationY="-4dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:gravity="center"
+                    android:text="99"
+                    android:textColor="@android:color/white"
+                    android:textSize="8sp"
+                    android:textStyle="bold"
+
+                    android:background="@drawable/bg_notification_badge"/>
+
+            </FrameLayout>
+
             <TextView
-                android:id="@+id/text_menu"
-                android:text="Menu"
-                android:textSize="12sp"
-                android:layout_height="wrap_content"
+                android:id="@+id/text_notification"
                 android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Notifications"
+                android:textSize="12sp"
                 android:textColor="@color/gray"/>
         </LinearLayout>
 
@@ -85,7 +115,7 @@
                 android:layout_height="36dp"/>
             <TextView
                 android:id="@+id/text_dashboard"
-                android:text="Dashboard"
+                android:text="Home"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:layout_height="wrap_content"
