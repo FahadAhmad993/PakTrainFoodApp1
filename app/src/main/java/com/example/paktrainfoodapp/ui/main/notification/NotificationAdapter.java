@@ -13,6 +13,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.paktrainfoodapp.R;
+import com.example.paktrainfoodapp.ui.main.Passenger.Passenger_Fragment_Loader;
 
 import java.util.List;
 
@@ -21,12 +22,33 @@ public class NotificationAdapter
 
     private final Context context;
     private final List<NotificationModel> list;
+    private NotificationClickListener listener;
+    private final NotificationRepository repository =
+            new NotificationRepository();
+    public interface NotificationClickListener {
 
-    public NotificationAdapter(Context context,
-                               List<NotificationModel> list) {
+        void onOrderClick(NotificationModel model);
+
+        // Future
+
+//    void onWalletClick(NotificationModel model);
+//
+//    void onProfileClick(NotificationModel model);
+//
+//    void onRestaurantClick(NotificationModel model);
+//
+//    void onOfferClick(NotificationModel model);
+
+    }
+    public NotificationAdapter(
+            Context context,
+            List<NotificationModel> list,
+            NotificationClickListener listener) {
 
         this.context = context;
         this.list = list;
+        this.listener = listener;
+
     }
 
     @NonNull
@@ -73,22 +95,77 @@ public class NotificationAdapter
         if (model.isRead()) {
 
             holder.viewUnread.setVisibility(View.GONE);
+            holder.itemView.setAlpha(0.7f);
 
         } else {
 
             holder.viewUnread.setVisibility(View.VISIBLE);
 
+            holder.itemView.setAlpha(1f);
+
         }
 
-        // Future Click
         holder.itemView.setOnClickListener(v -> {
 
-            // Firestore Read
+            // Mark notification as read
+            if (!model.isRead()) {
 
-            // Open Order Screen
+                repository.markAsRead(
+                        NotificationRepository.ROLE_PASSENGER,
+                        model.getDocumentId());
+
+                // UI update immediately
+                model.setRead(true);
+
+                holder.viewUnread.setVisibility(View.GONE);
+
+                notifyItemChanged(holder.getAdapterPosition());
+
+
+            }
+
+            // Open screen according to notification type
+            if (listener != null) {
+
+                listener.onOrderClick(model);
+
+            }
+
 
         });
 
+        String type = model.getType();
+
+        if (type == null) {
+
+            holder.imgIcon.setImageResource(R.drawable.ic_notification);
+
+        }
+        else if (type.equalsIgnoreCase("order")) {
+
+            holder.imgIcon.setImageResource(R.drawable.ic_order);
+
+        }
+//        else if (type.equalsIgnoreCase("wallet")) {
+//
+//            holder.imgIcon.setImageResource(R.drawable.ic_wallet);
+//
+//        }
+//        else if (type.equalsIgnoreCase("offer")) {
+//
+//            holder.imgIcon.setImageResource(R.drawable.ic_offer);
+//
+//        }
+//        else if (type.equalsIgnoreCase("restaurant")) {
+//
+//            holder.imgIcon.setImageResource(R.drawable.ic_restaurant);
+//
+//        }
+        else {
+
+            holder.imgIcon.setImageResource(R.drawable.ic_notification);
+
+        }
     }
 
     @Override

@@ -1,5 +1,7 @@
 package com.example.paktrainfoodapp.ui.main.notification;
 
+import android.util.Log;
+
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -76,6 +78,9 @@ public class NotificationRepository {
         }
 
     }
+
+
+
     public interface NotificationCallback {
 
         void onSuccess(List<NotificationModel> list);
@@ -119,6 +124,12 @@ public class NotificationRepository {
 
                         NotificationModel model =
                                 doc.toObject(NotificationModel.class);
+                        Boolean read = doc.getBoolean("isRead");
+
+                        if (read != null) {
+                            model.setRead(read);
+                        }
+                        model.setDocumentId(doc.getId());
 
                         list.add(model);
 
@@ -150,7 +161,7 @@ public class NotificationRepository {
 
         }
 
-        
+
 
         notificationListener = ref
                 .orderBy("createdAt", Query.Direction.DESCENDING)
@@ -174,7 +185,17 @@ public class NotificationRepository {
 
                             NotificationModel model =
                                     doc.toObject(NotificationModel.class);
+                            Boolean read = doc.getBoolean("isRead");
 
+                            if (read != null) {
+                                model.setRead(read);
+                            }
+                            model.setDocumentId(doc.getId());
+                            Log.d(
+                                    "NOTIFICATION",
+                                    "Firestore isRead = " + doc.getBoolean("isRead")
+                                            + " | Model isRead = " + model.isRead()
+                            );
                             list.add(model);
 
                         }
@@ -244,6 +265,17 @@ public class NotificationRepository {
                     callback.onCountChanged(count);
 
                 });
+
+
+    }
+    public void markAsRead(String role, String documentId) {
+
+        CollectionReference ref = getNotificationCollection(role);
+
+        if (ref == null) return;
+
+        ref.document(documentId)
+                .update("isRead", true);
 
     }
 }

@@ -11,7 +11,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="55dp"
-        android:background="#2E7D32"
+        android:background="@color/teal_700"
         android:gravity="center"
         android:text="Live Chat Support"
         android:textColor="@android:color/white"

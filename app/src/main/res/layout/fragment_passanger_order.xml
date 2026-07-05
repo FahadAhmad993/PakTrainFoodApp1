@@ -8,7 +8,7 @@
     android:background="@android:color/white"
     android:clickable="true"
     android:focusable="true"
-    tools:context=".ui.main.Passenger.OrderFragment">
+    tools:context=".ui.main.Passenger.order.OrderFragment">
 
     <!-- Toolbar -->
     <androidx.appcompat.widget.Toolbar

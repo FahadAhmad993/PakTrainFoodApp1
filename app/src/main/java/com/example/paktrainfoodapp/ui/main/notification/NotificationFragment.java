@@ -52,8 +52,43 @@ public class NotificationFragment extends Fragment {
         layoutEmpty = view.findViewById(R.id.layoutEmpty);
         toolbar = view.findViewById(R.id.toolbarNotification);
 
-        adapter = new NotificationAdapter(requireContext(), notificationList);
+        adapter = new NotificationAdapter(
 
+                requireContext(),
+                notificationList,
+
+                new NotificationAdapter.NotificationClickListener() {
+
+                    @Override
+                    public void onOrderClick(NotificationModel model) {
+
+                        openOrder(model);
+
+                    }
+
+//            @Override
+//            public void onWalletClick(NotificationModel model) {
+//
+//            }
+//
+//            @Override
+//            public void onProfileClick(NotificationModel model) {
+//
+//            }
+//
+//            @Override
+//            public void onRestaurantClick(NotificationModel model) {
+//
+//            }
+//
+//            @Override
+//            public void onOfferClick(NotificationModel model) {
+//
+//            }
+
+                }
+
+        );
         recyclerNotifications.setLayoutManager(
                 new LinearLayoutManager(requireContext()));
 
@@ -78,6 +113,43 @@ public class NotificationFragment extends Fragment {
         startRealtimeNotifications();
 
     }
+
+    private void openOrder(NotificationModel model) {
+
+        if (!(getParentFragment() instanceof com.example.paktrainfoodapp.ui.main.Passenger.Passenger_Fragment_Loader))
+            return;
+
+        com.example.paktrainfoodapp.ui.main.Passenger.Passenger_Fragment_Loader loader =
+                (com.example.paktrainfoodapp.ui.main.Passenger.Passenger_Fragment_Loader) getParentFragment();
+
+        String status = model.getStatus();
+
+        int tab = 0;
+
+        if ("Active".equalsIgnoreCase(status)) {
+
+            tab = 0;
+
+        } else if ("Accepted".equalsIgnoreCase(status)) {
+
+            tab = 1;
+
+        } else if ("Delivered".equalsIgnoreCase(status)) {
+
+            tab = 2;
+
+        } else if ("Completed".equalsIgnoreCase(status)) {
+
+            tab = 3;
+
+        }
+
+        loader.navigateToOrders(tab);
+
+        loader.openOrderDetail(model.getOrderId());
+
+    }
+
     private void startRealtimeNotifications() {
 
         progressBar.setVisibility(View.VISIBLE);

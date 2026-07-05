@@ -6,7 +6,7 @@
     android:background="@android:color/white"
     android:clickable="true"
     android:focusable="true"
-    tools:context=".ui.main.Passenger.CartFragment">
+    tools:context=".ui.main.Passenger.home.CartFragment">
 
     <!-- TODO: Update blank fragment layout -->
     <TextView

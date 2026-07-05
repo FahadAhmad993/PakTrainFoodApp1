@@ -1,6 +1,6 @@
 package com.example.paktrainfoodapp;
 
-import com.example.paktrainfoodapp.ui.main.Passenger.CartItem;
+import com.example.paktrainfoodapp.ui.main.Passenger.home.CartItem;
 
 import java.util.ArrayList;
 import java.util.HashMap;

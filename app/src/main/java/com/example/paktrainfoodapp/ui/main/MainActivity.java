@@ -13,7 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
 
 import com.example.paktrainfoodapp.R;
-import com.example.paktrainfoodapp.ui.main.Delivery.DeliveryDashboardFragment;
+import com.example.paktrainfoodapp.ui.main.Delivery.dashboard.DeliveryDashboardFragment;
 import com.example.paktrainfoodapp.ui.main.Delivery.DeliveryRegisterFragment;
 import com.example.paktrainfoodapp.ui.main.Passenger.Passenger_Fragment_Loader;
 import com.example.paktrainfoodapp.ui.main.Restaurant.RestaurantPendingFragment;
@@ -78,52 +78,37 @@ public class MainActivity extends AppCompatActivity {
 
         // 🔹 100% FIXED BACK PRESS HANDLING FOR INNER FRAGMENTS
         // 🔹 100% PERFECT UNIVERSAL BACK PRESS HANDLING
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                // Main Container se Passenger Loader nikalein
-                Fragment currentLoader = getSupportFragmentManager().findFragmentById(R.id.main_container);
+        getOnBackPressedDispatcher().addCallback(
+                this,
+                new OnBackPressedCallback(true) {
 
-                if (currentLoader instanceof Passenger_Fragment_Loader) {
-                    Passenger_Fragment_Loader loader = (Passenger_Fragment_Loader) currentLoader;
+                    @Override
+                    public void handleOnBackPressed() {
 
-                    // 1. Pehle check karo kya Restaurant List ya Menu ka internal backstack maujood hai?
-                    boolean handledInternally = loader.getChildFragmentManager().popBackStackImmediate();
-                    Fragment current =
-                            loader.getChildFragmentManager()
-                                    .findFragmentById(R.id.fragment_holder);
+                        Fragment fragment =
+                                getSupportFragmentManager()
+                                        .findFragmentById(R.id.main_container);
 
-                    if (current != null) {
-                        loader.showTempFragment(current);
-                        loader.updateBottomNav(current);
-                    }
+                        if (fragment instanceof Passenger_Fragment_Loader) {
 
-                    if (handledInternally) {
-                        // Agar peeche koi fragment tha (jaise menu se list ya list se home), to wo chala gaya.
-                        return;
-                    }
+                            Passenger_Fragment_Loader loader =
+                                    (Passenger_Fragment_Loader) fragment;
 
-                    // 2. Agar koi internal backstack nahi hai, to check karo user kis tab par khara hai?
-                    // Agar user Profile, Order, Cart ya Menu Browse par hai, to back dabane par usay wapas Dashboard/Home tab par aana chahiye!
-                    if (loader.getActiveFragment() != null && loader.getActiveFragment() != loader.getHomeFragment()) {
-                        // Wapas Dashboard wale button ko trigger karo taaki user Home par aa jaye
-                        // 🌟 FIX: loader.getView() lagane se fragment ka layout view mil jata hai
-                        if (loader.getView() != null) {
-                            loader.getView().findViewById(R.id.btn_dashboard).performClick();
+                            if (loader.handleBackPressed()) {
+
+                                return;
+
+                            }
+
                         }
-                    } else {
-                        // 3. Agar user pehle se hi bilkul main Home/Dashboard fragment par hai, ab app close hona chahiye.
-                        setEnabled(false); // Callback temporary off
-                        MainActivity.this.getOnBackPressedDispatcher().onBackPressed(); // Default close behavior
-                    }
-                } else {
-                    // Delivery ya Restaurant role ke liye default exit
-                    setEnabled(false);
-                    MainActivity.this.getOnBackPressedDispatcher().onBackPressed();
-                }
-            }
-        });
 
+                        setEnabled(false);
+
+                        getOnBackPressedDispatcher().onBackPressed();
+
+                    }
+
+                });
         String userRole = getIntent().getStringExtra(USER_ROLE_KEY);
         if (userRole == null || userRole.isEmpty()) {
             userRole = prefManager.getUserRole();

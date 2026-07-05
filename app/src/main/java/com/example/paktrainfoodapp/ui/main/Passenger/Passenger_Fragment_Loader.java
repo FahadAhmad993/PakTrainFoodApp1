@@ -12,9 +12,22 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.example.paktrainfoodapp.R;
+import com.example.paktrainfoodapp.ui.main.Passenger.home.CartFragment;
+import com.example.paktrainfoodapp.ui.main.Passenger.home.HomeFragment;
+import com.example.paktrainfoodapp.ui.main.Passenger.home.Passanger_ItemDetailsFragment;
+import com.example.paktrainfoodapp.ui.main.Passenger.home.Passanger_Resturent_list_Fragment;
+import com.example.paktrainfoodapp.ui.main.Passenger.home.Resturent_Menu_Fragment;
+import com.example.paktrainfoodapp.ui.main.Passenger.order.OrderFragment;
+import com.example.paktrainfoodapp.ui.main.Passenger.order.passanger_orderDetailFragment;
+import com.example.paktrainfoodapp.ui.main.Passenger.profile.CommonIssues;
+import com.example.paktrainfoodapp.ui.main.Passenger.profile.LiveChatFragment;
+import com.example.paktrainfoodapp.ui.main.Passenger.profile.ProfileFragment;
+import com.example.paktrainfoodapp.ui.main.Passenger.profile.StaticPage;
+import com.example.paktrainfoodapp.ui.main.Passenger.profile.passenger_helpandsupport;
 import com.example.paktrainfoodapp.ui.main.notification.NotificationFragment;
 import com.example.paktrainfoodapp.ui.main.notification.NotificationRepository;
 
@@ -204,6 +217,28 @@ private final NotificationFragment notificationFragment = new NotificationFragme
         navigateToOrders();
 
     }
+    public void navigateToOrders(int tabIndex, String orderId) {
+
+        orderFragment.setSelectedTab(tabIndex);
+
+        orderFragment.setPendingOrderId(orderId);
+
+        navigateToOrders();
+
+    }
+    public void openOrderDetail(String orderId) {
+
+        passanger_orderDetailFragment fragment =
+                new passanger_orderDetailFragment();
+
+        Bundle bundle = new Bundle();
+        bundle.putString("orderId", orderId);
+
+        fragment.setArguments(bundle);
+
+        openRestaurantMenu(fragment);
+
+    }
     private void startBadgeListener() {
 
         notificationRepository.listenUnreadCount(
@@ -306,75 +341,156 @@ private final NotificationFragment notificationFragment = new NotificationFragme
 
     public void showFragment(Fragment fragment) {
 
+        openScreen(fragment, false);
+
+        saveDashboardFragment(fragment);
+
+    }
+
+//    public void openSubFragment(Fragment fragment) {
+//
+//        FragmentTransaction transaction =
+//                getChildFragmentManager().beginTransaction();
+//
+//        transaction.hide(activeFragment);
+//
+//        if (!fragment.isAdded()) {
+//
+//            transaction.add(R.id.fragment_holder, fragment);
+//
+//        } else {
+//
+//            transaction.show(fragment);
+//
+//        }
+//
+//        transaction.addToBackStack(null);
+//
+//        transaction.commit();
+//
+//        activeFragment = fragment;
+//
+//        updateBottomNav(fragment);
+//
+//    }
+
+    public void openSubFragment(Fragment fragment) {
+
+        FragmentManager manager = getChildFragmentManager();
+
         FragmentTransaction transaction =
-                getChildFragmentManager().beginTransaction();
+                manager.beginTransaction();
+
+        if (activeFragment != null) {
+
+            transaction.hide(activeFragment);
+
+        }
+
+        if (!fragment.isAdded()) {
+
+            transaction.add(
+                    R.id.fragment_holder,
+                    fragment
+            );
+
+        } else {
+
+            transaction.show(fragment);
+
+        }
+
+        transaction.addToBackStack(
+                activeFragment == null
+                        ? ""
+                        : activeFragment.getClass().getName()
+        );
+
+        transaction.commit();
+
+        activeFragment = fragment;
+
+        updateBottomNav(fragment);
+
+    }
+
+    private void saveDashboardFragment(Fragment fragment) {
+
+        if (fragment instanceof HomeFragment
+                || fragment instanceof Passanger_Resturent_list_Fragment
+                || fragment instanceof Resturent_Menu_Fragment
+                || fragment instanceof Passanger_ItemDetailsFragment) {
+
+            lastDashboardFragment = fragment;
+
+        }
+
+    }
+
+    private void openScreen(
+            Fragment fragment,
+            boolean addToBackStack) {
+        if (!isAdded()) {
+            return;
+        }
+
+        FragmentManager manager = getChildFragmentManager();
+
+        if (manager.isStateSaved()) {
+            return;
+        }
+        FragmentTransaction transaction =
+                manager.beginTransaction();
 
         // Hide all visible fragments
-        for (Fragment frag : getChildFragmentManager().getFragments()) {
+        for (Fragment frag : manager.getFragments()) {
 
             if (frag != null &&
                     frag.isAdded() &&
                     frag.isVisible()) {
 
                 transaction.hide(frag);
+
             }
+
         }
 
-        // If not added before
         if (!fragment.isAdded()) {
 
-            transaction.add(R.id.fragment_holder, fragment);
+            transaction.add(
+                    R.id.fragment_holder,
+                    fragment
+            );
 
         } else {
 
             transaction.show(fragment);
+
+        }
+
+        if (addToBackStack) {
+
+            transaction.addToBackStack(null);
+
         }
 
         transaction.commit();
 
         activeFragment = fragment;
+
         updateBottomNav(fragment);
 
-        // 🔥 Dashboard flow save
-        if (fragment instanceof HomeFragment ||
-                fragment instanceof Passanger_Resturent_list_Fragment ||
-                fragment instanceof Station_Menu_Fragment ||
-                fragment instanceof Passanger_ItemDetailsFragment) {
-
-            lastDashboardFragment = fragment;
-        }
     }
-
     // =========================================================
     // RESTAURANT LIST
     // =========================================================
 
     public void openRestaurantList(Fragment fragment) {
 
-        FragmentTransaction transaction =
-                getChildFragmentManager().beginTransaction();
+        openDetailFragment(fragment);
 
-        // Hide all
-        for (Fragment frag : getChildFragmentManager().getFragments()) {
+        saveDashboardFragment(fragment);
 
-            if (frag != null &&
-                    frag.isAdded() &&
-                    frag.isVisible()) {
-
-                transaction.hide(frag);
-            }
-        }
-
-        transaction.add(R.id.fragment_holder, fragment);
-
-        transaction.addToBackStack(null);
-
-        transaction.commit();
-
-        activeFragment = fragment;
-
-        // 🔥 Save dashboard state
-        lastDashboardFragment = fragment;
     }
 
     // =========================================================
@@ -383,32 +499,11 @@ private final NotificationFragment notificationFragment = new NotificationFragme
 
     public void openRestaurantMenu(Fragment fragment) {
 
-        FragmentTransaction transaction =
-                getChildFragmentManager().beginTransaction();
+        openDetailFragment(fragment);
 
-        // Hide all visible fragments
-        for (Fragment frag : getChildFragmentManager().getFragments()) {
+        saveDashboardFragment(fragment);
 
-            if (frag != null &&
-                    frag.isAdded() &&
-                    frag.isVisible()) {
-
-                transaction.hide(frag);
-            }
-        }
-
-        transaction.add(R.id.fragment_holder, fragment);
-
-        transaction.addToBackStack(null);
-
-        transaction.commit();
-
-        activeFragment = fragment;
-
-        // 🔥 Save dashboard state
-        lastDashboardFragment = fragment;
     }
-
     // =========================================================
     // TEMP FRAGMENT
     // =========================================================
@@ -429,7 +524,7 @@ private final NotificationFragment notificationFragment = new NotificationFragme
 
         if (fragment instanceof HomeFragment ||
                 fragment instanceof Passanger_Resturent_list_Fragment ||
-                fragment instanceof Station_Menu_Fragment ||
+                fragment instanceof Resturent_Menu_Fragment ||
                 fragment instanceof Passanger_ItemDetailsFragment) {
 
             selectNavButton(btnDashboard);
@@ -570,18 +665,165 @@ private final NotificationFragment notificationFragment = new NotificationFragme
         if (helpSupportFragment == null) {
             helpSupportFragment = new passenger_helpandsupport();
         }
+        openSubFragment(helpSupportFragment);
 
-        showFragment(helpSupportFragment);
     }
     public void openCommonFragment(Fragment fragment) {
 
-        FragmentTransaction transaction =
-                getChildFragmentManager().beginTransaction();
+        openDetailFragment(fragment);
+
+    }
+
+    public void openProfileScreen(Fragment fragment) {
+
+        openDetailFragment(fragment);
+
+    }
+
+//    public boolean handleBackPressed() {
+//
+//        FragmentManager fm = getChildFragmentManager();
+//
+//        // Agar back stack mein screens hain
+//        if (fm.getBackStackEntryCount() > 0) {
+//
+//            fm.popBackStack();
+//
+//            fm.executePendingTransactions();
+//            // Hidden fragment find karo
+//            Fragment previous = null;
+//
+//            for (Fragment fragment : fm.getFragments()) {
+//
+//                if (fragment != null
+//                        && fragment.isAdded()
+//                        && fragment.isHidden()) {
+//
+//                    previous = fragment;
+//
+//                }
+//
+//            }
+//            // Visible fragment find karo
+//            Fragment current = null;
+//
+//            for (Fragment fragment : fm.getFragments()) {
+//
+//                if (fragment != null
+//                        && fragment.isAdded()
+//                        && fragment.isVisible()) {
+//
+//                    current = fragment;
+//                    break;
+//
+//                }
+//            }
+//
+//            if (current != null) {
+//
+//                activeFragment = current;
+//
+//                updateBottomNav(current);
+//
+//            }
+//
+//            return true;
+//        }
+//
+//        // Agar main tabs mein hain
+//        if (!(activeFragment instanceof HomeFragment)) {
+//
+//            showFragment(homeFragment);
+//
+//            return true;
+//
+//        }
+//
+//        // Home par hain -> Activity close hogi
+//        return false;
+//    }
+
+    //openDetailFragment method
+    private void openDetailFragment(Fragment fragment) {
+
+        if (!isAdded()) return;
+
+        FragmentManager manager = getChildFragmentManager();
+
+        if (manager.isStateSaved()) return;
+
+        FragmentTransaction transaction = manager.beginTransaction();
 
         transaction.replace(R.id.fragment_holder, fragment);
 
         transaction.addToBackStack(null);
 
+        transaction.commit();
+
+        activeFragment = fragment;
+
+        updateBottomNav(fragment);
+    }
+
+
+    private Fragment getVisibleFragment() {
+
+        for (Fragment fragment : getChildFragmentManager().getFragments()) {
+
+            if (fragment != null
+                    && fragment.isAdded()
+                    && fragment.isVisible()) {
+
+                return fragment;
+
+            }
+
+        }
+
+        return null;
+    }
+
+
+
+
+public boolean handleBackPressed() {
+
+    FragmentManager fm = getChildFragmentManager();
+
+    // Agar sub screen open hai
+    if (fm.getBackStackEntryCount() > 0) {
+
+        fm.popBackStack();
+
+        fm.executePendingTransactions();
+
+        Fragment current = getVisibleFragment();
+
+        if (current != null) {
+
+            activeFragment = current;
+
+            updateBottomNav(current);
+
+        }
+
+
+        return true;
+
+    }
+
+    // Agar Home par nahi ho
+    if (!(activeFragment instanceof HomeFragment)) {
+
+        showFragment(homeFragment);
+
+        return true;
+
+    }
+
+    // Home par ho to Activity close hogi
+    return false;
+}
     @Override
     public void onDestroyView() {
 
@@ -591,15 +833,13 @@ private final NotificationFragment notificationFragment = new NotificationFragme
 
             notificationRepository.removeListener();
 
+
         }
-
-    }
-}
-
-        transaction.commit();
     }
 
+
 }
+
 
 
 

@@ -13,11 +13,10 @@
         android:id="@+id/toolbarNotification"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="@android:color/white"
+        android:background="@color/teal_700"
         android:elevation="2dp"
         app:title="Notifications"
-        app:titleCentered="true"
-        app:titleTextColor="@android:color/black"
+        app:titleTextColor="@android:color/white"
         app:menu="@menu/menu_notification" />
 
     <!-- Loading -->
