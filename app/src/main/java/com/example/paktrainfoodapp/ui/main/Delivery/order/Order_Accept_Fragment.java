@@ -14,7 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.paktrainfoodapp.R;
 import com.example.paktrainfoodapp.ui.main.Delivery.DeliveryBoyAdapter;
 import com.example.paktrainfoodapp.ui.main.Delivery.DeliveryBoyModel;
-import com.example.paktrainfoodapp.ui.main.Restaurant.OrderDetailFragment;
+import com.example.paktrainfoodapp.ui.main.Restaurant.order.OrderDetailFragment;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.*;
 

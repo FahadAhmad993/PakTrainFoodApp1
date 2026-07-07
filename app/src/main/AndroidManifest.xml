@@ -71,7 +71,7 @@
 
         <!-- Firebase Messaging Service Configuration -->
         <service
-            android:name=".ui.main.MyFirebaseMessagingService"
+            android:name=".ui.main.notification.MyFirebaseMessagingService"
             android:exported="false">
 
             <intent-filter>

@@ -8,7 +8,7 @@ import android.view.WindowManager;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.paktrainfoodapp.ui.FirebaseSeeder;
+import com.example.paktrainfoodapp.ui.main.FirebaseSeeder;
 import com.example.paktrainfoodapp.ui.auth.AuthActivity;
 import com.example.paktrainfoodapp.ui.main.MainActivity;
 import com.example.paktrainfoodapp.utils.PrefManager;

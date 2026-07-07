@@ -1,4 +1,4 @@
-package com.example.paktrainfoodapp.ui.main.Restaurant;
+package com.example.paktrainfoodapp.ui.main.Restaurant.order;
 
 import android.graphics.Color;
 import android.location.Location;

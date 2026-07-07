@@ -1,4 +1,4 @@
-package com.example.paktrainfoodapp.ui;
+package com.example.paktrainfoodapp.ui.main;
 
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;

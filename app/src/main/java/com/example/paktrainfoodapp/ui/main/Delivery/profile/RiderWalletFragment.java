@@ -14,8 +14,8 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.example.paktrainfoodapp.R;
-import com.example.paktrainfoodapp.ui.main.Restaurant.WalletHistory;
-import com.example.paktrainfoodapp.ui.main.Restaurant.WalletHistoryAdapter;
+import com.example.paktrainfoodapp.ui.main.Restaurant.profile.WalletHistory;
+import com.example.paktrainfoodapp.ui.main.Restaurant.profile.WalletHistoryAdapter;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;

@@ -1,4 +1,4 @@
-package com.example.paktrainfoodapp.ui.main.Restaurant;
+package com.example.paktrainfoodapp.ui.main.Restaurant.menu;
 
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -27,7 +27,7 @@ public class AddEditItemDialogFragment extends DialogFragment {
     public interface Listener { void onSaved(); }
 
     private String restId;
-    private MenuItem editingItem;
+    private com.example.paktrainfoodapp.ui.main.Restaurant.menu.MenuItem editingItem;
     private Listener listener;
 
     private TextInputEditText etName, etDesc, etTime, etCategory;
@@ -43,7 +43,7 @@ public class AddEditItemDialogFragment extends DialogFragment {
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
-    public static AddEditItemDialogFragment newInstance(String restId, MenuItem item, Listener listener) {
+    public static AddEditItemDialogFragment newInstance(String restId, com.example.paktrainfoodapp.ui.main.Restaurant.menu.MenuItem item, Listener listener) {
         AddEditItemDialogFragment f = new AddEditItemDialogFragment();
         f.restId = restId;
         f.editingItem = item;
@@ -168,7 +168,7 @@ public class AddEditItemDialogFragment extends DialogFragment {
                     if (pref.getUserCity() != null && !pref.getUserCity().isEmpty()) city = pref.getUserCity();
 
                     // ✅ UPDATED: Naye Constructor ke mutabiq object banaya gaya
-                    MenuItem item = new MenuItem(
+                    com.example.paktrainfoodapp.ui.main.Restaurant.menu.MenuItem item = new com.example.paktrainfoodapp.ui.main.Restaurant.menu.MenuItem(
                             name,
                             desc,
                             url,

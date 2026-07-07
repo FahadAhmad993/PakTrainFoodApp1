@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F7F7F7"
-    tools:context=".ui.main.Restaurant.resturent_DashboardFragment">
+    tools:context=".ui.main.Restaurant.dashboard.resturent_DashboardFragment">
 
     <LinearLayout
         android:layout_width="match_parent"

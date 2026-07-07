@@ -1,8 +1,6 @@
-package com.example.paktrainfoodapp.ui.main;
+package com.example.paktrainfoodapp.ui.main.notification;
 
 import android.Manifest;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.content.pm.PackageManager;
 import android.util.Log;
 
@@ -12,6 +10,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
 import com.example.paktrainfoodapp.R;
+import com.example.paktrainfoodapp.ui.main.MainActivity;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import android.app.PendingIntent;

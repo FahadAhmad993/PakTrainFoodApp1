@@ -1,4 +1,4 @@
-package com.example.paktrainfoodapp.ui.main.Restaurant;
+package com.example.paktrainfoodapp.ui.main.Restaurant.menu;
 
 import android.app.AlertDialog;
 import android.os.Bundle;
