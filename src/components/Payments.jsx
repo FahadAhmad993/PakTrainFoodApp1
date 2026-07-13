@@ -1,252 +1,618 @@
-import { useState } from 'react';
-import './Payments.css';
+import { useEffect, useState, useCallback } from "react";
+import "./Payments.css";
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+
+import { db } from "../firebase/config";
+
+// Currency formatting utility shifted to PKR
+const formatCurrency = (amount, currency = "PKR") => {
+  return new Intl.NumberFormat("en-PK", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0
+  }).format(Number(amount || 0));
+};
 
 const Payments = () => {
-  const [transactions] = useState([
-    {
-      id: "TX-402",
-      date: "Oct 24, 2023 14:32",
-      entity: "Burger King #402",
-      entityType: "Restaurant",
-      avatar: "BK",
-      avatarBg: "#e0e7ff",
-      avatarColor: "#4f46e5",
-      isAvatarImage: false,
-      amount: "$1,240.00",
-      type: "Payout",
-      status: "COMPLETED",
-      statusClass: "status-completed"
-    },
-    {
-      id: "TX-403",
-      date: "Oct 24, 2023 13:15",
-      entity: "Michael Scott",
-      entityType: "Delivery Rider",
-      avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-      isAvatarImage: true,
-      amount: "$45.50",
-      type: "Commission",
-      status: "PENDING",
-      statusClass: "status-pending"
-    },
-    {
-      id: "TX-404",
-      date: "Oct 24, 2023 12:45",
-      entity: "Papa Pancho's",
-      entityType: "Restaurant",
-      avatar: "PP",
-      avatarBg: "#e0e7ff",
-      avatarColor: "#4f46e5",
-      isAvatarImage: false,
-      amount: "$892.20",
-      type: "Payout",
-      status: "IN TRANSIT",
-      statusClass: "status-transit"
-    },
-    {
-      id: "TX-405",
-      date: "Oct 24, 2023 11:20",
-      entity: "James Wilson",
-      entityType: "Delivery Rider",
-      avatar: "https://randomuser.me/api/portraits/men/85.jpg",
-      isAvatarImage: true,
-      amount: "$120.00",
-      type: "Commission",
-      status: "DELAYED",
-      statusClass: "status-delayed"
+  const [loading, setLoading] = useState(true);
+
+  // Admin Wallet State
+  const [adminWallet, setAdminWallet] = useState({
+    available: 0,
+    pending: 0,
+    currency: "PKR"
+  });
+
+  // Wallets + History Arrays
+  const [wallets, setWallets] = useState([]);
+  const [history, setHistory] = useState([]);
+
+  // Metrics Display States
+  const [restaurantPending, setRestaurantPending] = useState(0);
+  const [riderPending, setRiderPending] = useState(0);
+  const [totalPaid, setTotalPaid] = useState(0);
+
+  // PAYOUT SHEET MODAL STATES
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedWallet, setSelectedWallet] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [payoutError, setPayoutError] = useState("");
+
+  // ----------------------------------------------------
+  // REAL TIME ADMIN STRIPE WALLET FETCH
+  // ----------------------------------------------------
+  const loadStripeBalance = useCallback(async (isMounted = { current: true }) => {
+    try {
+      const response = await fetch(
+        "https://us-central1-paktrainfoodservice.cloudfunctions.net/getAdminBalance",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      const data = await response.json();
+
+      if (!data || data.success !== true) return;
+
+      const availableItems = data.available || [];
+      const pendingItems = data.pending || [];
+
+      const availableAmt = availableItems.length > 0 ? (availableItems[0].amount || 0) / 100 : 0;
+      const pendingAmt = pendingItems.length > 0 ? (pendingItems[0].amount || 0) / 100 : 0;
+      const currencyType = availableItems.length > 0 ? (availableItems[0].currency || "PKR").toUpperCase() : "PKR";
+
+      if (isMounted.current) {
+        setAdminWallet({
+          available: Number(availableAmt),
+          pending: Number(pendingAmt),
+          currency: currencyType
+        });
+      }
+    } catch (err) {
+      console.error("Network or JSON Serialization Error inside Admin Wallet:", err);
     }
-  ]);
+  }, []);
+
+  // ----------------------------------------------------
+  // FETCH FIRESTORE WALLETS DATA WITH EXTENDED FIELDS
+  // ----------------------------------------------------
+  const fetchWallets = useCallback(async (isMounted = { current: true }) => {
+    try {
+      if (isMounted.current) setLoading(true);
+
+      const walletSnapshot = await getDocs(collection(db, "Wallets"));
+      const walletList = [];
+      const historyList = [];
+
+      let restaurantTotal = 0;
+      let riderTotal = 0;
+      let paidTotal = 0;
+
+      for (const walletDoc of walletSnapshot.docs) {
+        if (walletDoc.id === "admin_wallet") continue;
+
+        const walletData = walletDoc.data();
+        const available = Number(walletData.availableBalance || 0);
+        const pending = Number(walletData.pendingBalance || 0);
+
+        let user = null;
+        let role = "";
+        let name = "";
+        let phone = "";
+        let email = "";
+        let city = "";
+
+        let bankName = "Not Set";
+        let accountTitle = "Not Set";
+        let accountNumber = "Not Available";
+        let iban = "Not Available";
+
+        // FIX: pehle default "No Stripe Account Linked" rakhte hain,
+        // baad mein user document se asli value nikalenge (walletData se nahi)
+        let stripeAccountId = "No Stripe Account Linked";
+        let stripeOnboardingComplete = false;
+
+        // Restaurant Registration Context Document Reference
+        const restaurantRef = doc(
+          db,
+          "Users",
+          "Restaurant",
+          "VerifiedRegister",
+          walletDoc.id
+        );
+        const restaurantSnap = await getDoc(restaurantRef);
+
+        if (restaurantSnap.exists()) {
+          user = restaurantSnap.data();
+          role = "Restaurant";
+          name = user.restaurantName || user.ownerName || "Restaurant";
+          phone = user.phone || "";
+          email = user.email || "";
+          city = user.city || "";
+          bankName = user.bankName || "HBL Sandbox";
+          accountTitle = user.ownerName || name;
+          accountNumber = user.phone || "Not Available";
+          iban = user.iban || user.IBAN || "Not Available";
+
+          // FIX: asli Stripe Account ID yahan se milegi
+          if (user.stripeAccountId) {
+            stripeAccountId = user.stripeAccountId;
+          }
+          stripeOnboardingComplete = user.stripeOnboardingComplete || false;
+
+          restaurantTotal += available;
+        }
+
+        // Rider Registration Document Reference
+        if (!user) {
+          const riderRef = doc(
+            db,
+            "Users",
+            "Delivery",
+            "VerifiedRegister",
+            walletDoc.id
+          );
+          const riderSnap = await getDoc(riderRef);
+
+          if (riderSnap.exists()) {
+            user = riderSnap.data();
+            role = "Delivery";
+            name = user.name || "Delivery Boy";
+            phone = user.phone || "";
+            email = user.email || "";
+            city = user.city || "";
+            bankName = user.bankName || "EasyPaisa Sandbox";
+            accountTitle = user.name || "Rider Account";
+            accountNumber = user.phone || "Not Available";
+            iban = user.iban || user.IBAN || "Not Available";
+
+            // FIX: asli Stripe Account ID yahan se milegi
+            if (user.stripeAccountId) {
+              stripeAccountId = user.stripeAccountId;
+            }
+            stripeOnboardingComplete = user.stripeOnboardingComplete || false;
+
+            riderTotal += available;
+          }
+        }
+
+        walletList.push({
+          id: walletDoc.id,
+          role,
+          name,
+          phone,
+          email,
+          city,
+
+          available,
+          pending,
+
+          bankName,
+          accountTitle,
+          accountNumber,
+          iban,
+
+          stripeAccountId,
+          stripeOnboardingComplete
+        });
+
+        // Subcollection Sub-History Queries
+        const historySnapshot = await getDocs(
+          collection(db, "Wallets", walletDoc.id, "history")
+        );
+
+        historySnapshot.forEach((item) => {
+          const h = item.data();
+          historyList.push({
+            walletId: walletDoc.id,
+            role,
+            name,
+            phone,
+            amount: h.amount || 0,
+            orderId: h.orderId || "-",
+            type: h.type || "",
+            date: h.date || "",
+            transferId: h.transferId || "-",
+            method: h.method || "manual"
+          });
+
+          if (h.type === "Paid by Admin") {
+            paidTotal += Number(h.amount || 0);
+          }
+        });
+      }
+
+      if (isMounted.current) {
+        setWallets(walletList);
+        setHistory(historyList);
+        setRestaurantPending(restaurantTotal);
+        setRiderPending(riderTotal);
+        setTotalPaid(paidTotal);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Error reading Firestore collection nodes:", error);
+      if (isMounted.current) setLoading(false);
+    }
+  }, []);
+
+  // ----------------------------------------------------
+  // INITIAL LOAD AND SCHEDULER SUBSCRIPTION
+  // ----------------------------------------------------
+  useEffect(() => {
+    const isMounted = { current: true };
+
+    const init = async () => {
+      await loadStripeBalance(isMounted);
+      await fetchWallets(isMounted);
+    };
+
+    init();
+
+    const interval = setInterval(() => {
+      loadStripeBalance(isMounted);
+    }, 10000);
+
+    return () => {
+      isMounted.current = false;
+      clearInterval(interval);
+    };
+  }, [loadStripeBalance, fetchWallets]);
+
+  // ----------------------------------------------------
+  // OPEN PAYOUT SHEET TRIGGER
+  // ----------------------------------------------------
+  const handleOpenPayoutSheet = (wallet) => {
+    setPayoutError("");
+    setSelectedWallet(wallet);
+    setIsModalOpen(true);
+  };
+
+  // ----------------------------------------------------
+  // EXECUTE REAL TRANSFER/MUTATION LAYER
+  // ----------------------------------------------------
+  const handleConfirmPayout = async () => {
+    if (!selectedWallet) return;
+
+    setPayoutError("");
+
+    const hasValidStripeAccount =
+      selectedWallet.stripeAccountId &&
+      selectedWallet.stripeAccountId.startsWith("acct_");
+
+    try {
+      setIsProcessing(true);
+
+      let transferId = null;
+      let method = "manual";
+
+      // ============================================
+      // AGAR REAL STRIPE CONNECTED ACCOUNT HAI,
+      // TOU ASAL TRANSFER CALL KARO (Admin Stripe
+      // balance real mein kam hoga)
+      // ============================================
+      if (hasValidStripeAccount) {
+        const response = await fetch(
+          "https://us-central1-paktrainfoodservice.cloudfunctions.net/payoutToPartner",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              walletId: selectedWallet.id,
+              amount: selectedWallet.available,
+              stripeAccountId: selectedWallet.stripeAccountId,
+              receiverType: selectedWallet.role,
+              name: selectedWallet.name
+            })
+          }
+        );
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || "Stripe transfer failed");
+        }
+
+        transferId = result.transferId;
+        method = "stripe";
+      }
+      // Agar valid connected account nahi hai, tou purana
+      // manual flow chalta rahega (sirf Firestore record) -
+      // isliye demo/testing rukta nahi.
+
+      const walletRef = doc(db, "Wallets", selectedWallet.id);
+
+      // Reset internal database entries
+      await updateDoc(walletRef, {
+        availableBalance: 0,
+        pendingBalance: 0
+      });
+
+      // Insert ledger notification document
+      await addDoc(
+        collection(db, "Wallets", selectedWallet.id, "history"),
+        {
+          amount: selectedWallet.available,
+          orderId: "ADMIN_STRIPE_PAYOUT",
+          type: "Paid by Admin",
+          role: selectedWallet.role,
+          receiver: selectedWallet.name,
+          phone: selectedWallet.phone,
+          email: selectedWallet.email,
+          city: selectedWallet.city,
+          bankName: selectedWallet.bankName,
+          accountTitle: selectedWallet.accountTitle,
+          method,
+          transferId: transferId || "N/A",
+          date: new Date().toISOString(),
+          timestamp: serverTimestamp()
+        }
+      );
+
+      setIsModalOpen(false);
+      setSelectedWallet(null);
+
+      if (method === "stripe") {
+        alert("Real Stripe sandbox transfer successful! Admin balance updated.");
+      } else {
+        alert("Payout recorded (manual/no Stripe account linked yet).");
+      }
+
+      // Admin ka real balance turant refresh karo (Stripe se live fetch)
+      await loadStripeBalance();
+      await fetchWallets();
+    } catch (error) {
+      console.error("Disbursement operation mutation crash:", error);
+      setPayoutError(error.message || "Payment processing failure.");
+      alert("Payment processing failure: " + (error.message || ""));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ----------------------------------------------------
+  // DERIVED METRICS
+  // ----------------------------------------------------
+  const totalWalletBalance = wallets.reduce((sum, w) => sum + Number(w.available || 0), 0);
+  const totalRestaurants = wallets.filter((w) => w.role === "Restaurant").length;
+  const totalRiders = wallets.filter((w) => w.role === "Delivery").length;
+
+  const sortedHistory = [...history].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  const sortedWallets = [...wallets].sort((a, b) => b.available - a.available);
 
   return (
     <div className="payments-container animate-fade-in">
-      {/* Header */}
+      {/* MAIN VIEW HEADER */}
       <div className="payments-header">
         <div>
           <h2>Payment Management</h2>
-          <p>Monitor cash flows, settlements, and payout efficiency.</p>
+          <p>Manage Restaurant & Rider Payments</p>
         </div>
-        <button className="btn-primary">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5 mr-2">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          Export Ledger
-        </button>
       </div>
 
-      {/* Metric Cards */}
+      {/* DASHBOARD CARD ROW COMPONENTS */}
       <div className="payments-metrics-grid">
-        {/* Ecosystem Volume */}
-        <div className="payment-card volume-card">
-          <div className="card-header">
-            <div className="header-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <span>TOTAL ECOSYSTEM VOLUME</span>
-            </div>
-          </div>
-          <div className="card-body">
-            <h3>$1,284,590.00</h3>
-            <span className="trend-text">
-              <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clipRule="evenodd" /></svg>
-              +12.4% from last month
-            </span>
-          </div>
-          <div className="volume-sub-metrics">
-            <div className="sub-metric">
-              <span>Commissions</span>
-              <h4>$192,688</h4>
-            </div>
-            <div className="sub-metric">
-              <span>Logistics Fees</span>
-              <h4>$84,120</h4>
-            </div>
-          </div>
-        </div>
-
-        {/* Pending Payouts */}
-        <div className="payment-card pending-card">
-          <div className="card-header">
-            <div className="header-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>PENDING PAYOUTS</span>
-            </div>
-            <span className="badge-urgent">URGENT</span>
-          </div>
-          <div className="card-body split-body">
-            <h3>$42,350.50</h3>
-            <span className="entities-text">128 Entities</span>
-          </div>
-          <div className="progress-container">
-            <div className="progress-bar red-progress" style={{width: '75%'}}></div>
-          </div>
-          <p className="card-description">
-            These funds are scheduled for disbursement in the next 24-hour cycle. 12 payouts require manual verification.
+        <div className="payment-card">
+          <h3>ADMIN STRIPE WALLET</h3>
+          <h2>{formatCurrency(adminWallet.available, adminWallet.currency)}</h2>
+          <p style={{ marginTop: "10px" }}>
+            Pending : {formatCurrency(adminWallet.pending, adminWallet.currency)}
           </p>
-          <button className="btn-outline-full">Verify All Pending</button>
         </div>
 
-        {/* Success Rate */}
-        <div className="payment-card success-card">
-          <div className="card-header">
-            <div className="header-title text-white">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>SUCCESS RATE</span>
-            </div>
-          </div>
-          <div className="card-body">
-            <h3 className="text-white">99.8%</h3>
-            <span className="success-desc">Payment processing reliability</span>
-          </div>
-          <div className="mini-bar-chart">
-            <div className="chart-bar" style={{height: '30%', opacity: 0.4}}></div>
-            <div className="chart-bar" style={{height: '40%', opacity: 0.5}}></div>
-            <div className="chart-bar" style={{height: '60%', opacity: 0.6}}></div>
-            <div className="chart-bar" style={{height: '50%', opacity: 0.7}}></div>
-            <div className="chart-bar" style={{height: '80%', opacity: 0.8}}></div>
-            <div className="chart-bar" style={{height: '100%', opacity: 1}}></div>
-          </div>
+        <div className="payment-card">
+          <h3>RESTAURANT PENDING</h3>
+          <h2>{formatCurrency(restaurantPending, "PKR")}</h2>
+        </div>
+
+        <div className="payment-card">
+          <h3>RIDER PENDING</h3>
+          <h2>{formatCurrency(riderPending, "PKR")}</h2>
+        </div>
+
+        <div className="payment-card">
+          <h3>TOTAL PAID</h3>
+          <h2>{formatCurrency(totalPaid, "PKR")}</h2>
         </div>
       </div>
 
-      {/* Transactions Table */}
+      {/* ACCOUNT BALANCES DATA GRID */}
       <div className="payments-table-card">
-        {/* Toolbar */}
-        <div className="table-toolbar">
-          <div className="filter-group">
-            <button className="filter-dropdown">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-2"><path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" /></svg>
-              Last 30 Days
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 ml-1"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-            </button>
-            <button className="filter-dropdown">
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 mr-2"><path fillRule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clipRule="evenodd" /></svg>
-              Status: All
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 ml-1"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-            </button>
-            <button className="filter-dropdown">
-              Type: All
-              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 ml-1"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-            </button>
-          </div>
-          <span className="showing-text">Showing 432 transactions</span>
-        </div>
+        <h3 style={{ padding: "20px" }}>Wallets</h3>
 
-        {/* Table */}
-        <div className="table-responsive">
-          <table className="payments-table">
-            <thead>
+        <table className="payments-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Phone</th>
+              <th>Stripe Status</th>
+              <th>Available Balance</th>
+              <th>Pending Balance</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading ? (
               <tr>
-                <th>DATE</th>
-                <th>ENTITY</th>
-                <th>AMOUNT</th>
-                <th>TYPE</th>
-                <th>STATUS</th>
-                <th className="text-right">ACTIONS</th>
+                <td colSpan="7">Loading...</td>
               </tr>
-            </thead>
-            <tbody>
-              {transactions.map((tx) => (
-                <tr key={tx.id}>
-                  <td className="primary-text">{tx.date}</td>
+            ) : sortedWallets.length === 0 ? (
+              <tr>
+                <td colSpan="7">No Wallet Found</td>
+              </tr>
+            ) : (
+              sortedWallets.map((wallet) => (
+                <tr key={wallet.id}>
+                  <td>{wallet.name}</td>
                   <td>
-                    <div className="flex-cell">
-                      {tx.isAvatarImage ? (
-                        <img src={tx.avatar} alt={tx.entity} className="entity-avatar" />
-                      ) : (
-                        <div className="entity-initials" style={{backgroundColor: tx.avatarBg, color: tx.avatarColor}}>{tx.avatar}</div>
-                      )}
-                      <div>
-                        <p className="primary-text">{tx.entity}</p>
-                        <p className="secondary-text">{tx.entityType}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="font-semibold text-dark">{tx.amount}</td>
-                  <td>
-                    <div className="type-cell">
-                      {tx.type === 'Payout' ? (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      )}
-                      {tx.type}
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`payment-badge ${tx.statusClass}`}>
-                      {tx.status}
+                    <span
+                      className={
+                        wallet.role === "Restaurant"
+                          ? "role-badge restaurant"
+                          : "role-badge rider"
+                      }
+                    >
+                      {wallet.role}
                     </span>
                   </td>
-                  <td className="text-right">
-                    <button className="btn-icon-only">
-                      <svg viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-                      </svg>
+                  <td>{wallet.phone}</td>
+                  <td>
+                    {wallet.stripeAccountId?.startsWith("acct_") ? (
+                      <span style={{ color: "green", fontWeight: "bold" }}>
+                        {wallet.stripeOnboardingComplete ? "Linked ✓" : "Pending Onboarding"}
+                      </span>
+                    ) : (
+                      <span style={{ color: "#999" }}>Not Linked</span>
+                    )}
+                  </td>
+                  <td className="available-balance">
+                    {formatCurrency(wallet.available, "PKR")}
+                  </td>
+                  <td className="pending-balance">
+                    {formatCurrency(wallet.pending, "PKR")}
+                  </td>
+                  <td>
+                    <button
+                      className="pay-now-btn"
+                      disabled={wallet.available <= 0}
+                      onClick={() => handleOpenPayoutSheet(wallet)}
+                    >
+                      Pay Now
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-        {/* Pagination */}
-        <div className="table-footer-pagination">
-          <button className="page-btn text-btn">Previous</button>
-          <div className="pagination-controls">
-            <button className="page-btn active">1</button>
-            <button className="page-btn">2</button>
-            <button className="page-btn">3</button>
-            <span className="page-dots">...</span>
-            <button className="page-btn">12</button>
+      {/* HISTORICAL LEDGER ENTRIES */}
+      <div className="payments-table-card">
+        <h3 style={{ padding: "20px" }}>Payment History</h3>
+
+        <table className="payments-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Amount</th>
+              <th>Type</th>
+              <th>Method</th>
+              <th>Order</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {sortedHistory.length === 0 ? (
+              <tr>
+                <td colSpan="7">No History Found</td>
+              </tr>
+            ) : (
+              sortedHistory.map((item, index) => (
+                <tr key={index}>
+                  <td>{item.name}</td>
+                  <td>{item.role}</td>
+                  <td>{formatCurrency(item.amount, "PKR")}</td>
+                  <td>{item.type}</td>
+                  <td>{item.method === "stripe" ? "Stripe (Real)" : "Manual"}</td>
+                  <td>{item.orderId}</td>
+                  <td>{item.date ? item.date.slice(0, 10) : "-"}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* DYNAMIC PAYOUT SHEET (MODAL POPUP VIEW) */}
+      {isModalOpen && selectedWallet && (
+        <div className="payout-modal-overlay">
+          <div className="payout-modal-sheet">
+            <div className="payout-modal-header">
+              <h3>Execute Payout Gateway Transfer</h3>
+              <button className="close-btn" onClick={() => setIsModalOpen(false)}>×</button>
+            </div>
+
+            <div className="payout-modal-body">
+
+              <div className="modal-user-card">
+                <div className="avatar">
+                  {selectedWallet.name?.charAt(0)}
+                </div>
+
+                <div>
+                  <h2>{selectedWallet.name}</h2>
+                  <span className="role-tag">{selectedWallet.role}</span>
+                </div>
+              </div>
+
+              <div className="info-grid">
+                <div><b>Phone:</b> : {selectedWallet.phone}</div>
+                <div><b>Email:</b> : {selectedWallet.email || "N/A"}</div>
+                <div><b>City:</b> : {selectedWallet.city || "N/A"}</div>
+                <div><b>Bank:</b> : {selectedWallet.bankName}</div>
+                <div><b>Account Title:</b> : {selectedWallet.accountTitle}</div>
+                <div><b>Account No:</b> : {selectedWallet.phone}</div>
+              </div>
+
+              {selectedWallet.stripeAccountId?.startsWith("acct_") ? (
+                <div style={{ margin: "10px 0", color: "green", fontWeight: "bold" }}>
+                  ✓ Stripe Connected Account Linked — Real sandbox transfer hogi
+                </div>
+              ) : (
+                <div style={{ margin: "10px 0", color: "#a15c00", fontWeight: "bold" }}>
+                  ⚠ Koi Stripe account linked nahi — sirf manual record hoga
+                </div>
+              )}
+
+              <div className="balance-box">
+                <span>AVAILABLE BALANCE</span>
+                <h1>{formatCurrency(selectedWallet.available, "PKR")}</h1>
+              </div>
+
+              {payoutError && (
+                <div style={{ color: "red", marginTop: "10px" }}>{payoutError}</div>
+              )}
+
+            </div>
+
+            <div className="payout-modal-footer">
+              <button className="cancel-action-btn" onClick={() => setIsModalOpen(false)} disabled={isProcessing}>
+                Cancel
+              </button>
+              <button className="confirm-payout-btn" onClick={handleConfirmPayout} disabled={isProcessing}>
+                {isProcessing ? "Processing Transfer..." : "Confirm Payment"}
+              </button>
+            </div>
           </div>
-          <button className="page-btn text-btn">Next</button>
         </div>
+      )}
+
+      {/* FOOTER METRICS SUMMARY */}
+      <div style={{ marginTop: "20px", fontWeight: "bold", textAlign: "right" }}>
+        Total Wallets : {wallets.length}
+        <br />
+        Restaurants : {totalRestaurants}
+        <br />
+        Riders : {totalRiders}
+        <br />
+        Total Balance : {formatCurrency(totalWalletBalance, "PKR")}
       </div>
     </div>
   );

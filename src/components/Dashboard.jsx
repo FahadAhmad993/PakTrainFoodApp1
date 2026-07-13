@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; 
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 import Restaurant from './Restaurant';
 import Riders from './Riders';
 import Payments from './Payments';
 import OrderReports from './OrderReports';
+
+// Firebase Firestore ke imports
+import { db } from '../firebase/config'; 
+import { collection, onSnapshot } from 'firebase/firestore';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -127,6 +131,68 @@ const Dashboard = () => {
 };
 
 const DashboardOverview = () => {
+  // Chaaron metrics ke liye states
+  const [orderCount, setOrderCount] = useState(0);
+  const [passengerCount, setPassengerCount] = useState(0);
+  const [restaurantCount, setRestaurantCount] = useState(0);
+  const [riderCount, setRiderCount] = useState(0);
+
+  // Chaaron ki loading states
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [loadingPassengers, setLoadingPassengers] = useState(true);
+  const [loadingRestaurants, setLoadingRestaurants] = useState(true);
+  const [loadingRiders, setLoadingRiders] = useState(true);
+
+  useEffect(() => {
+    // 1. Orders Real-time Listener (Main Root Collection)
+    const orderCollectionRef = collection(db, 'Orders');
+    const unsubscribeOrders = onSnapshot(orderCollectionRef, (snapshot) => {
+      setOrderCount(snapshot.size);
+      setLoadingOrders(false);
+    }, (error) => {
+      console.error("Orders fetch error: ", error);
+      setLoadingOrders(false);
+    });
+
+    // 2. Passenger Real-time Listener
+    const passengerCollectionRef = collection(db, 'Users', 'Passenger', 'Register');
+    const unsubscribePassengers = onSnapshot(passengerCollectionRef, (snapshot) => {
+      setPassengerCount(snapshot.size);
+      setLoadingPassengers(false);
+    }, (error) => {
+      console.error("Passenger fetch error: ", error);
+      setLoadingPassengers(false);
+    });
+
+    // 3. Restaurant Real-time Listener
+    const restaurantCollectionRef = collection(db, 'Users', 'Restaurant', 'VerifiedRegister');
+    const unsubscribeRestaurants = onSnapshot(restaurantCollectionRef, (snapshot) => {
+      setRestaurantCount(snapshot.size);
+      setLoadingRestaurants(false);
+    }, (error) => {
+      console.error("Restaurant fetch error: ", error);
+      setLoadingRestaurants(false);
+    });
+
+    // 4. Delivery Riders Real-time Listener
+    const riderCollectionRef = collection(db, 'Users', 'Delivery', 'VerifiedRegister');
+    const unsubscribeRiders = onSnapshot(riderCollectionRef, (snapshot) => {
+      setRiderCount(snapshot.size);
+      setLoadingRiders(false);
+    }, (error) => {
+      console.error("Rider fetch error: ", error);
+      setLoadingRiders(false);
+    });
+
+    // Clean up all listeners
+    return () => {
+      unsubscribeOrders();
+      unsubscribePassengers();
+      unsubscribeRestaurants();
+      unsubscribeRiders();
+    };
+  }, []);
+
   return (
     <div className="overview-container">
       {/* Header */}
@@ -150,7 +216,8 @@ const DashboardOverview = () => {
       <div className="metrics-grid">
         <MetricCard 
           title="TOTAL ORDERS" 
-          value="12,482" 
+          // Real-time main orders collection count
+          value={loadingOrders ? "Loading..." : orderCount.toLocaleString()} 
           trend="+12.5%" 
           trendClass="trend-positive" 
           icon="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" 
@@ -158,7 +225,7 @@ const DashboardOverview = () => {
         />
         <MetricCard 
           title="ACTIVE RESTAURANTS" 
-          value="842" 
+          value={loadingRestaurants ? "Loading..." : restaurantCount.toLocaleString()} 
           trend="Stable" 
           trendClass="trend-neutral" 
           icon="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" 
@@ -166,7 +233,7 @@ const DashboardOverview = () => {
         />
         <MetricCard 
           title="TOTAL PASSENGERS" 
-          value="14,780" 
+          value={loadingPassengers ? "Loading..." : passengerCount.toLocaleString()} 
           trend="+8.4%" 
           trendClass="trend-positive" 
           icon="M16 7a4 4 0 11-8 0 4 4 0 018 0zm-8 8a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6z" 
@@ -174,7 +241,7 @@ const DashboardOverview = () => {
         />
         <MetricCard 
           title="DELIVERY BOYS" 
-          value="3,120" 
+          value={loadingRiders ? "Loading..." : riderCount.toLocaleString()} 
           trend="+48 New" 
           trendClass="trend-positive" 
           icon="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" 
